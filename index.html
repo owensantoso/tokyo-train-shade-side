@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tokyo Train Shade Side</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main>
+      <section class="intro">
+        <p class="eyebrow">Tokyo prototype</p>
+        <h1>Train shade-side recommender</h1>
+        <p>Pick a line, two stations, and a time. This uses approximate station coordinates and sun position to suggest the side with less direct sun.</p>
+      </section>
+
+      <form id="shade-form" class="panel">
+        <label>
+          Line
+          <select id="line"></select>
+        </label>
+
+        <div class="station-grid">
+          <label>
+            From
+            <select id="start"></select>
+          </label>
+          <label>
+            To
+            <select id="end"></select>
+          </label>
+        </div>
+
+        <label class="checkbox-row">
+          <input id="use-now" type="checkbox" checked>
+          Use current time
+        </label>
+
+        <label>
+          Specific time
+          <input id="time" type="datetime-local">
+        </label>
+
+        <button type="submit">Recommend side</button>
+      </form>
+
+      <section id="result" class="result" aria-live="polite" hidden></section>
+
+      <section class="notes">
+        <h2>Assumptions</h2>
+        <p id="assumption"></p>
+        <p>No maps, route planning, transfers, live train data, car layout data, platform orientation, or building-shadow modeling. Accuracy is intentionally rough for a first working version.</p>
+      </section>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
