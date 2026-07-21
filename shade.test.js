@@ -4,8 +4,11 @@ import assert from "node:assert/strict";
 import {
   LINES,
   calculateBearing,
+  calculateDistanceKm,
+  findClosestStation,
   recommendShadeSide,
   stationNamesForLine,
+  swapStations,
 } from "./shade.js";
 
 test("includes Keio New Line and Inokashira station choices", () => {
@@ -56,4 +59,34 @@ test("returns no meaningful difference when the sun is low or aligned with the t
   const ahead = recommendShadeSide({ heading: 180, sunAzimuth: 186, sunElevation: 30 });
   assert.equal(ahead.side, "none");
   assert.equal(ahead.confidence, "low");
+});
+
+test("calculates geographic distance in kilometers", () => {
+  const distance = calculateDistanceKm(
+    { lat: 35.6687, lon: 139.6503 },
+    { lat: 35.6737, lon: 139.6674 },
+  );
+
+  assert.ok(distance > 1.5 && distance < 1.8);
+  assert.equal(calculateDistanceKm(
+    { lat: 35.6687, lon: 139.6503 },
+    { lat: 35.6687, lon: 139.6503 },
+  ), 0);
+});
+
+test("finds the closest station only on the selected line", () => {
+  const nearShimokitazawa = findClosestStation("inokashira", 35.6617, 139.6667);
+  assert.equal(nearShimokitazawa.station.name, "Shimokitazawa");
+  assert.ok(nearShimokitazawa.distanceKm < 0.01);
+
+  const nearKeioMeidaimae = findClosestStation("keio", 35.6687, 139.6503);
+  assert.equal(nearKeioMeidaimae.station.name, "Meidaimae");
+  assert.ok(nearKeioMeidaimae.distanceKm < 0.01);
+});
+
+test("swaps origin and destination station names", () => {
+  assert.deepEqual(swapStations("Meidaimae", "Shinjuku"), {
+    startName: "Shinjuku",
+    endName: "Meidaimae",
+  });
 });

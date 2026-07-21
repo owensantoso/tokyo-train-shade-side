@@ -7,12 +7,23 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - Website only.
 - Supports Keio Line / Keio New Line and Inokashira Line.
 - User chooses a line, start station, end station, and time.
+- Swap origin and destination with one button.
+- Optionally choose the closest origin station on the selected line using browser location.
 - Uses approximate station coordinates and approximate sun position.
 - No maps, route planning, transfers, live train data, car layout data, or building shadows.
 
 ## Run locally
 
 Open `index.html` in a browser, or serve the folder with any static server.
+
+The station-board interface recalculates immediately when the line, route, or departure time changes.
+
+## Location assumptions
+
+- Location is requested only after pressing the closest-station button.
+- Coordinates stay in the browser and are not stored or sent to a server.
+- Geolocation normally requires HTTPS or localhost; the GitHub Pages deployment uses HTTPS.
+- Closest means straight-line distance to stations on the selected line, not walking distance.
 
 ## Test
 

@@ -98,6 +98,37 @@ export function calculateBearing(start, end) {
   return normalizeDegrees(toDegrees(Math.atan2(y, x)));
 }
 
+export function calculateDistanceKm(start, end) {
+  const earthRadiusKm = 6371;
+  const deltaLat = toRadians(end.lat - start.lat);
+  const deltaLon = toRadians(end.lon - start.lon);
+  const lat1 = toRadians(start.lat);
+  const lat2 = toRadians(end.lat);
+  const haversine =
+    Math.sin(deltaLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+export function findClosestStation(lineId, lat, lon) {
+  const line = LINES[lineId];
+  if (!line) {
+    throw new Error("Choose a supported line.");
+  }
+
+  const location = { lat, lon };
+  return line.stations.reduce((closest, station) => {
+    const distanceKm = calculateDistanceKm(location, station);
+    return !closest || distanceKm < closest.distanceKm
+      ? { station, distanceKm }
+      : closest;
+  }, null);
+}
+
+export function swapStations(startName, endName) {
+  return { startName: endName, endName: startName };
+}
+
 export function calculateSunPosition(date, { lat = TOKYO.lat, lon = TOKYO.lon } = {}) {
   const julianDay = date.getTime() / 86400000 + 2440587.5;
   const n = julianDay - 2451545;

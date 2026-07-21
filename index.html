@@ -3,54 +3,95 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Tokyo Train Shade Side</title>
+    <meta name="theme-color" content="#f4c800">
+    <meta name="description" content="Find the side of Keio and Inokashira trains likely to have less direct sun.">
+    <title>Shade Seat · Tokyo train sun guide</title>
     <link rel="stylesheet" href="styles.css">
   </head>
-  <body>
-    <main>
-      <section class="intro">
-        <p class="eyebrow">Tokyo prototype</p>
-        <h1>Train shade-side recommender</h1>
-        <p>Pick a line, two stations, and a time. This uses approximate station coordinates and sun position to suggest the side with less direct sun.</p>
+  <body data-line="keio">
+    <a class="skip-link" href="#main-content">Skip to trip controls</a>
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="Shade Seat home">
+        <span class="brand-mark" aria-hidden="true">S</span>
+        <span>Shade Seat</span>
+      </a>
+      <span class="prototype-label">Tokyo beta</span>
+    </header>
+
+    <main id="main-content">
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">Tokyo train sun guide</p>
+        <h1 id="page-title">Find the cooler side.</h1>
+        <p>Choose your ride and get a quick estimate of which side should have less direct sun.</p>
       </section>
 
-      <form id="shade-form" class="panel">
-        <label>
-          Line
-          <select id="line"></select>
-        </label>
+      <div class="workspace">
+        <form id="shade-form" class="trip-tool">
+          <fieldset class="line-picker">
+            <legend>Train line</legend>
+            <div class="segmented-control">
+              <input id="line-keio" name="line" type="radio" value="keio" checked>
+              <label for="line-keio">Keio + New Line</label>
+              <input id="line-inokashira" name="line" type="radio" value="inokashira">
+              <label for="line-inokashira">Inokashira</label>
+            </div>
+          </fieldset>
 
-        <div class="station-grid">
-          <label>
-            From
-            <select id="start"></select>
-          </label>
-          <label>
-            To
-            <select id="end"></select>
-          </label>
+          <div class="route-fields">
+            <label class="station-field" for="start">
+              <span>Origin</span>
+              <select id="start"></select>
+            </label>
+
+            <button id="swap-stations" class="icon-button swap-button" type="button" aria-label="Swap origin and destination" title="Swap origin and destination">
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m7 16 4 4 4-4"></path><path d="M11 4v16"></path><path d="m17 8-4-4-4 4"></path>
+              </svg>
+            </button>
+
+            <label class="station-field" for="end">
+              <span>Destination</span>
+              <select id="end"></select>
+            </label>
+          </div>
+
+          <div class="location-group">
+            <button id="locate-station" class="secondary-button" type="button">
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle><path d="M12 2v3"></path><path d="M12 19v3"></path><path d="m4.93 4.93 2.12 2.12"></path><path d="m16.95 16.95 2.12 2.12"></path><path d="M2 12h3"></path><path d="M19 12h3"></path><path d="m4.93 19.07 2.12-2.12"></path><path d="m16.95 7.05 2.12-2.12"></path>
+              </svg>
+              <span>Use closest station on this line</span>
+            </button>
+            <p id="location-status" class="field-status" aria-live="polite"></p>
+          </div>
+
+          <fieldset class="time-picker">
+            <legend>Departure</legend>
+            <div class="time-row">
+              <div class="segmented-control time-mode">
+                <input id="time-now" name="time-mode" type="radio" value="now" checked>
+                <label id="now-label" for="time-now">Now</label>
+                <input id="time-specific" name="time-mode" type="radio" value="specific">
+                <label for="time-specific">Pick time</label>
+              </div>
+              <label id="specific-time-label" class="specific-time" for="time" hidden>
+                <span>Date and time</span>
+                <input id="time" type="datetime-local" disabled>
+              </label>
+            </div>
+          </fieldset>
+        </form>
+
+        <section id="result" class="result" aria-live="polite"></section>
+      </div>
+
+      <details class="limitations">
+        <summary>About this estimate</summary>
+        <div>
+          <p id="assumption"></p>
+          <p>Station coordinates and solar position are approximate. Buildings, platforms, carriage layout, window coatings and weather are not modeled. There is no live train or service data.</p>
         </div>
-
-        <label class="checkbox-row">
-          <input id="use-now" type="checkbox" checked>
-          Use current time
-        </label>
-
-        <label>
-          Specific time
-          <input id="time" type="datetime-local">
-        </label>
-
-        <button type="submit">Recommend side</button>
-      </form>
-
-      <section id="result" class="result" aria-live="polite" hidden></section>
-
-      <section class="notes">
-        <h2>Assumptions</h2>
-        <p id="assumption"></p>
-        <p>No maps, route planning, transfers, live train data, car layout data, platform orientation, or building-shadow modeling. Accuracy is intentionally rough for a first working version.</p>
-      </section>
+      </details>
     </main>
 
     <script type="module" src="app.js"></script>
