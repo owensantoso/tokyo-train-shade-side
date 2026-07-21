@@ -6,6 +6,7 @@ export const TOKYO = {
 export const LINES = {
   keio: {
     name: "Keio Line / Keio New Line",
+    shortName: "Keio + New",
     assumption:
       "Models the Keio New Line path from Shinjuku through Hatsudai and Hatagaya to Sasazuka, then the main Keio Line toward Keio-Hachioji. Branches and express stopping patterns are omitted.",
     stations: [
@@ -47,6 +48,7 @@ export const LINES = {
   },
   inokashira: {
     name: "Inokashira Line",
+    shortName: "Inokashira",
     assumption:
       "Models the Inokashira Line from Shibuya to Kichijoji with no transfers or live service details.",
     stations: [
@@ -83,6 +85,38 @@ export function stationNamesForLine(lineId) {
   return LINES[lineId].stations.map((station) => station.name);
 }
 
+export function stationOptions(lineId = "all") {
+  const lineIds = lineId === "all" ? Object.keys(LINES) : [lineId];
+  return lineIds.flatMap((id) => {
+    const line = LINES[id];
+    if (!line) return [];
+    return line.stations.map((station) => ({
+      ...station,
+      lineId: id,
+      lineName: line.name,
+      lineLabel: line.shortName,
+    }));
+  });
+}
+
+const normalizeStationQuery = (value) => value.trim().toLowerCase().replace(/[\s-]+/g, "");
+
+export function filterStationOptions(query, lineId = "all") {
+  const options = stationOptions(lineId);
+  const normalizedQuery = normalizeStationQuery(query);
+  if (!normalizedQuery) return options;
+
+  return options
+    .map((option, index) => {
+      const normalizedName = normalizeStationQuery(option.name);
+      const matchIndex = normalizedName.indexOf(normalizedQuery);
+      return { option, index, matchIndex };
+    })
+    .filter(({ matchIndex }) => matchIndex >= 0)
+    .sort((a, b) => Number(a.matchIndex > 0) - Number(b.matchIndex > 0) || a.index - b.index)
+    .map(({ option }) => option);
+}
+
 export function findStation(lineId, stationName) {
   return LINES[lineId].stations.find((station) => station.name === stationName);
 }
@@ -111,22 +145,54 @@ export function calculateDistanceKm(start, end) {
 }
 
 export function findClosestStation(lineId, lat, lon) {
-  const line = LINES[lineId];
-  if (!line) {
+  const options = stationOptions(lineId);
+  if (!options.length) {
     throw new Error("Choose a supported line.");
   }
 
   const location = { lat, lon };
-  return line.stations.reduce((closest, station) => {
+  return options.reduce((closest, station) => {
     const distanceKm = calculateDistanceKm(location, station);
     return !closest || distanceKm < closest.distanceKm
-      ? { station, distanceKm }
+      ? { station, lineId: station.lineId, distanceKm }
       : closest;
   }, null);
 }
 
 export function swapStations(startName, endName) {
   return { startName: endName, endName: startName };
+}
+
+const COMPASS_POINTS = [
+  { short: "N", label: "North" },
+  { short: "NNE", label: "North-northeast" },
+  { short: "NE", label: "Northeast" },
+  { short: "ENE", label: "East-northeast" },
+  { short: "E", label: "East" },
+  { short: "ESE", label: "East-southeast" },
+  { short: "SE", label: "Southeast" },
+  { short: "SSE", label: "South-southeast" },
+  { short: "S", label: "South" },
+  { short: "SSW", label: "South-southwest" },
+  { short: "SW", label: "Southwest" },
+  { short: "WSW", label: "West-southwest" },
+  { short: "W", label: "West" },
+  { short: "WNW", label: "West-northwest" },
+  { short: "NW", label: "Northwest" },
+  { short: "NNW", label: "North-northwest" },
+];
+
+export function describeBearing(degrees) {
+  const index = Math.round(normalizeDegrees(degrees) / 22.5) % COMPASS_POINTS.length;
+  return COMPASS_POINTS[index];
+}
+
+export function describeSunElevation(elevation) {
+  if (elevation <= 0) return "Below the horizon";
+  if (elevation < 15) return "Low above the horizon";
+  if (elevation < 45) return "Mid-sky";
+  if (elevation < 70) return "High in the sky";
+  return "Nearly overhead";
 }
 
 export function calculateSunPosition(date, { lat = TOKYO.lat, lon = TOKYO.lon } = {}) {

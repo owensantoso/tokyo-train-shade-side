@@ -3,70 +3,92 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f4c800">
+    <meta name="theme-color" content="#f2f4f3">
     <meta name="description" content="Find the side of Keio and Inokashira trains likely to have less direct sun.">
     <title>Shade Seat · Tokyo train sun guide</title>
     <link rel="stylesheet" href="styles.css">
   </head>
-  <body data-line="keio">
+  <body data-line="all">
     <a class="skip-link" href="#main-content">Skip to trip controls</a>
     <header class="site-header">
       <a class="brand" href="./" aria-label="Shade Seat home">
         <span class="brand-mark" aria-hidden="true">S</span>
         <span>Shade Seat</span>
       </a>
-      <span class="prototype-label">Tokyo beta</span>
+      <span class="rail-stripes" aria-hidden="true"><i></i><i></i></span>
+      <span class="prototype-label">Tokyo beta · v0.2</span>
     </header>
 
     <main id="main-content">
       <section class="intro" aria-labelledby="page-title">
         <p class="eyebrow">Tokyo train sun guide</p>
         <h1 id="page-title">Find the cooler side.</h1>
-        <p>Choose your ride and get a quick estimate of which side should have less direct sun.</p>
+        <p>Search your stations. We compare the train’s direction with the sun and point you toward the shadier seats.</p>
       </section>
 
       <div class="workspace">
-        <form id="shade-form" class="trip-tool">
+        <form id="shade-form" class="trip-tool" novalidate>
           <fieldset class="line-picker">
-            <legend>Train line</legend>
-            <div class="segmented-control">
-              <input id="line-keio" name="line" type="radio" value="keio" checked>
-              <label for="line-keio">Keio + New Line</label>
+            <legend>Filter by train line</legend>
+            <div class="segmented-control line-control">
+              <input id="line-all" name="line" type="radio" value="all" checked>
+              <label for="line-all">All lines</label>
+              <input id="line-keio" name="line" type="radio" value="keio">
+              <label for="line-keio">Keio + New</label>
               <input id="line-inokashira" name="line" type="radio" value="inokashira">
               <label for="line-inokashira">Inokashira</label>
             </div>
           </fieldset>
 
-          <div class="route-fields">
-            <label class="station-field" for="start">
-              <span>Origin</span>
-              <select id="start"></select>
-            </label>
+          <div class="route-board">
+            <div class="route-heading">
+              <span>Route</span>
+              <span id="route-line-label">All supported lines</span>
+            </div>
 
-            <button id="swap-stations" class="icon-button swap-button" type="button" aria-label="Swap origin and destination" title="Swap origin and destination">
-              <svg aria-hidden="true" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m7 16 4 4 4-4"></path><path d="M11 4v16"></path><path d="m17 8-4-4-4 4"></path>
-              </svg>
-            </button>
+            <div class="route-fields">
+              <div class="station-search">
+                <label class="field-label" for="origin-input"><span>01</span> Origin</label>
+                <div class="combobox-shell">
+                  <svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path>
+                  </svg>
+                  <input id="origin-input" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="origin-suggestions" autocomplete="off" placeholder="Type a station">
+                </div>
+                <ul id="origin-suggestions" class="suggestions" role="listbox" aria-label="Origin station suggestions" hidden></ul>
+              </div>
 
-            <label class="station-field" for="end">
-              <span>Destination</span>
-              <select id="end"></select>
-            </label>
+              <button id="swap-stations" class="swap-button" type="button" aria-label="Swap origin and destination" title="Swap origin and destination">
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m3 8 4-4 4 4"></path><path d="M7 4v16"></path><path d="m21 16-4 4-4-4"></path><path d="M17 20V4"></path>
+                </svg>
+              </button>
+
+              <div class="station-search">
+                <label class="field-label" for="destination-input"><span>02</span> Destination</label>
+                <div class="combobox-shell">
+                  <svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path>
+                  </svg>
+                  <input id="destination-input" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="destination-suggestions" autocomplete="off" placeholder="Type a station">
+                </div>
+                <ul id="destination-suggestions" class="suggestions" role="listbox" aria-label="Destination station suggestions" hidden></ul>
+              </div>
+            </div>
           </div>
 
           <div class="location-group">
             <button id="locate-station" class="secondary-button" type="button">
               <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"></circle><path d="M12 2v3"></path><path d="M12 19v3"></path><path d="m4.93 4.93 2.12 2.12"></path><path d="m16.95 16.95 2.12 2.12"></path><path d="M2 12h3"></path><path d="M19 12h3"></path><path d="m4.93 19.07 2.12-2.12"></path><path d="m16.95 7.05 2.12-2.12"></path>
+                <circle cx="12" cy="12" r="3"></circle><path d="M12 2v3"></path><path d="M12 19v3"></path><path d="M2 12h3"></path><path d="M19 12h3"></path>
               </svg>
-              <span>Use closest station on this line</span>
+              <span>Use closest station</span>
             </button>
             <p id="location-status" class="field-status" aria-live="polite"></p>
           </div>
 
           <fieldset class="time-picker">
-            <legend>Departure</legend>
+            <legend>Departure time</legend>
             <div class="time-row">
               <div class="segmented-control time-mode">
                 <input id="time-now" name="time-mode" type="radio" value="now" checked>

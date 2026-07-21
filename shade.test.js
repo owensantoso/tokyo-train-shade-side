@@ -5,8 +5,12 @@ import {
   LINES,
   calculateBearing,
   calculateDistanceKm,
+  describeBearing,
+  describeSunElevation,
+  filterStationOptions,
   findClosestStation,
   recommendShadeSide,
+  stationOptions,
   stationNamesForLine,
   swapStations,
 } from "./shade.js";
@@ -89,4 +93,45 @@ test("swaps origin and destination station names", () => {
     startName: "Shinjuku",
     endName: "Meidaimae",
   });
+});
+
+test("builds station search options for all lines or one selected line", () => {
+  const allOptions = stationOptions("all");
+  const sharedStations = allOptions.filter((option) => option.name === "Meidaimae");
+
+  assert.deepEqual(sharedStations.map((option) => option.lineId), ["keio", "inokashira"]);
+  assert.equal(stationOptions("inokashira").every((option) => option.lineId === "inokashira"), true);
+  assert.equal(stationOptions("keio").length, LINES.keio.stations.length);
+});
+
+test("filters station suggestions with prefix matches before substring matches", () => {
+  const sharedMatches = filterStationOptions("meidai", "all");
+  assert.equal(sharedMatches.length, 2);
+  assert.deepEqual(sharedMatches.map((option) => option.lineId), ["keio", "inokashira"]);
+
+  const shMatches = filterStationOptions("sh", "all");
+  const firstSubstringIndex = shMatches.findIndex((option) => !option.name.toLowerCase().startsWith("sh"));
+  assert.ok(firstSubstringIndex > 0);
+  assert.equal(shMatches.slice(0, firstSubstringIndex).every((option) => option.name.toLowerCase().startsWith("sh")), true);
+  assert.equal(filterStationOptions("shibuya", "keio").length, 0);
+});
+
+test("finds the closest station across all lines and reports its line", () => {
+  const closest = findClosestStation("all", 35.658, 139.7016);
+  assert.equal(closest.station.name, "Shibuya");
+  assert.equal(closest.lineId, "inokashira");
+});
+
+test("turns raw bearings into 16-point compass directions", () => {
+  assert.deepEqual(describeBearing(239), { short: "WSW", label: "West-southwest" });
+  assert.deepEqual(describeBearing(45), { short: "NE", label: "Northeast" });
+  assert.deepEqual(describeBearing(359), { short: "N", label: "North" });
+});
+
+test("describes the sun's height in human terms", () => {
+  assert.equal(describeSunElevation(-2), "Below the horizon");
+  assert.equal(describeSunElevation(8), "Low above the horizon");
+  assert.equal(describeSunElevation(34), "Mid-sky");
+  assert.equal(describeSunElevation(58), "High in the sky");
+  assert.equal(describeSunElevation(76), "Nearly overhead");
 });
