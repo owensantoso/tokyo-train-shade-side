@@ -5,12 +5,16 @@ import {
   LINES,
   calculateBearing,
   calculateDistanceKm,
+  calculateSolarEvents,
+  calculateSunPosition,
   departurePreset,
   describeBearing,
   describeSunElevation,
   filterStationOptions,
   findClosestStation,
   getRoutePath,
+  getRecommendation,
+  isNighttime,
   recommendShadeSide,
   resolveRouteLine,
   shouldPreserveDestination,
@@ -139,6 +143,41 @@ test("preserves a destination when closest station resolves to the same line", (
   assert.equal(shouldPreserveDestination({ lineId: "chuo" }, "yamanote"), false);
   assert.equal(shouldPreserveDestination({ lineIds: ["inokashira", "ginza", "yamanote"] }, "inokashira"), true);
   assert.equal(shouldPreserveDestination(null, "yamanote"), true);
+});
+
+test("treats the sun as set once it passes the apparent horizon", () => {
+  assert.equal(isNighttime(-0.84), true);
+  assert.equal(isNighttime(-0.83), false);
+  assert.equal(isNighttime(12), false);
+});
+
+test("calculates seasonal sunrise and sunset locally for Tokyo", () => {
+  const summer = calculateSolarEvents(new Date("2026-06-21T12:00:00+09:00"));
+  const winter = calculateSolarEvents(new Date("2026-12-21T12:00:00+09:00"));
+
+  assert.ok(summer.sunrise instanceof Date);
+  assert.ok(summer.sunset instanceof Date);
+  assert.ok(summer.sunset.getTime() > Date.parse("2026-06-21T18:45:00+09:00"));
+  assert.ok(summer.sunset.getTime() < Date.parse("2026-06-21T19:15:00+09:00"));
+  assert.ok(winter.sunset.getTime() > Date.parse("2026-12-21T16:15:00+09:00"));
+  assert.ok(winter.sunset.getTime() < Date.parse("2026-12-21T16:50:00+09:00"));
+  const summerUtcMinutes = summer.sunset.getUTCHours() * 60 + summer.sunset.getUTCMinutes();
+  const winterUtcMinutes = winter.sunset.getUTCHours() * 60 + winter.sunset.getUTCMinutes();
+  assert.ok(summerUtcMinutes > winterUtcMinutes + 120);
+});
+
+test("marks a midnight route as night while noon remains daylight", () => {
+  const midnight = getRecommendation({
+    lineId: "yamanote",
+    startName: "Shibuya",
+    endName: "Osaki",
+    date: new Date("2026-07-22T00:29:00+09:00"),
+  });
+  const noonSun = calculateSunPosition(new Date("2026-07-22T12:00:00+09:00"));
+
+  assert.equal(midnight.isNight, true);
+  assert.equal(isNighttime(noonSun.elevation), false);
+  assert.ok(midnight.solarEvents.sunset instanceof Date);
 });
 
 test("builds useful future departure presets", () => {

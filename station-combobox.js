@@ -6,13 +6,15 @@ export function isTapGesture(start, end) {
 }
 
 export class StationCombobox {
-  constructor({ input, listbox, codeElement, getOptions, onSelect, onInput }) {
+  constructor({ input, listbox, codeElement, clearButton, getOptions, onSelect, onInput, onClear }) {
     this.input = input;
     this.listbox = listbox;
     this.codeElement = codeElement;
+    this.clearButton = clearButton;
     this.getOptions = getOptions;
     this.onSelect = onSelect;
     this.onInput = onInput;
+    this.onClear = onClear;
     this.lineId = "all";
     this.selection = null;
     this.options = [];
@@ -22,6 +24,7 @@ export class StationCombobox {
     this.input.addEventListener("focus", () => this.open());
     this.input.addEventListener("input", () => {
       this.selection = null;
+      this.updateClearButton();
       this.onInput?.();
       this.open();
     });
@@ -61,6 +64,16 @@ export class StationCombobox {
     document.addEventListener("pointerdown", (event) => {
       if (event.target !== this.input && !this.listbox.contains(event.target)) this.close();
     });
+    this.clearButton?.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    this.clearButton?.addEventListener("click", () => {
+      this.clear();
+      this.onClear?.();
+      this.focusAndOpen();
+    });
+    this.updateClearButton();
   }
 
   setLine(lineId) {
@@ -76,6 +89,7 @@ export class StationCombobox {
       this.codeElement.title = option?.lineName ?? "";
       this.codeElement.hidden = !option;
     }
+    this.updateClearButton();
     this.close();
   }
 
@@ -91,7 +105,12 @@ export class StationCombobox {
       this.codeElement.textContent = "";
       this.codeElement.hidden = true;
     }
+    this.updateClearButton();
     this.close();
+  }
+
+  updateClearButton() {
+    if (this.clearButton) this.clearButton.hidden = !this.input.value;
   }
 
   focusAndOpen() {

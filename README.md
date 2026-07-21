@@ -18,6 +18,8 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - Swap origin and destination with one button.
 - Optionally choose the closest origin station using browser location, across all lines or within an explicit line filter.
 - Uses approximate station coordinates and approximate sun position.
+- Detects night after the calculated Tokyo sunset and removes the sun-side recommendation and compass.
+- Sunrise and sunset are calculated locally for the selected date; no weather or astronomy API is called.
 - Explains train and sun bearings with 16-point compass labels while preserving raw degrees.
 - No maps, route planning, transfers, live train data, car layout data, or building shadows.
 - The station diagram is a coordinate-derived line schematic, not a geographic street map or route planner.

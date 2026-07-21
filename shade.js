@@ -486,6 +486,46 @@ export function calculateSunPosition(date, { lat = TOKYO.lat, lon = TOKYO.lon } 
   return { azimuth, elevation };
 }
 
+const APPARENT_HORIZON_DEGREES = -0.833;
+const TOKYO_UTC_OFFSET_MINUTES = 9 * 60;
+
+export function isNighttime(sunElevation) {
+  return sunElevation < APPARENT_HORIZON_DEGREES;
+}
+
+export function calculateSolarEvents(
+  date,
+  { lat = TOKYO.lat, lon = TOKYO.lon, utcOffsetMinutes = TOKYO_UTC_OFFSET_MINUTES } = {},
+) {
+  const offsetMs = utcOffsetMinutes * 60000;
+  const localDate = new Date(date.getTime() + offsetMs);
+  const dayStart = Date.UTC(
+    localDate.getUTCFullYear(),
+    localDate.getUTCMonth(),
+    localDate.getUTCDate(),
+  ) - offsetMs;
+  const stepMs = 5 * 60000;
+  let sunrise = null;
+  let sunset = null;
+  let previousTime = dayStart;
+  let previousDelta = calculateSunPosition(new Date(previousTime), { lat, lon }).elevation - APPARENT_HORIZON_DEGREES;
+
+  for (let time = dayStart + stepMs; time <= dayStart + 86400000; time += stepMs) {
+    const delta = calculateSunPosition(new Date(time), { lat, lon }).elevation - APPARENT_HORIZON_DEGREES;
+    const crossedHorizon = (previousDelta <= 0 && delta > 0) || (previousDelta > 0 && delta <= 0);
+    if (crossedHorizon) {
+      const crossingRatio = previousDelta / (previousDelta - delta);
+      const eventDate = new Date(previousTime + crossingRatio * stepMs);
+      if (previousDelta <= 0) sunrise = eventDate;
+      else sunset = eventDate;
+    }
+    previousTime = time;
+    previousDelta = delta;
+  }
+
+  return { sunrise, sunset };
+}
+
 export function recommendShadeSide({ heading, sunAzimuth, sunElevation }) {
   const relativeSunAngle = normalizeSignedDegrees(sunAzimuth - heading);
   const absoluteSideAngle = Math.abs(relativeSunAngle);
@@ -531,6 +571,8 @@ export function getRecommendation({ lineId, startName, endName, date }) {
   const route = getRoutePath(lineId, startName, endName);
   const heading = calculateBearing(start, line.circular ? route.stations[1] : end);
   const sun = calculateSunPosition(date);
+  const isNight = isNighttime(sun.elevation);
+  const solarEvents = calculateSolarEvents(date);
   const recommendation = recommendShadeSide({
     heading,
     sunAzimuth: sun.azimuth,
@@ -545,6 +587,8 @@ export function getRecommendation({ lineId, startName, endName, date }) {
     direction: route.direction,
     heading,
     sun,
+    isNight,
+    solarEvents,
     ...recommendation,
   };
 }

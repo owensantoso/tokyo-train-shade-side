@@ -1,5 +1,6 @@
 import {
   LINES,
+  calculateSolarEvents,
   departurePreset,
   describeBearing,
   describeSunElevation,
@@ -31,18 +32,22 @@ const origin = new StationCombobox({
   input: document.querySelector("#origin-input"),
   listbox: document.querySelector("#origin-suggestions"),
   codeElement: document.querySelector("#origin-code"),
+  clearButton: document.querySelector("#clear-origin"),
   getOptions: filterStationOptions,
   onSelect: handleOriginSelect,
   onInput: handleOriginInput,
+  onClear: handleOriginInput,
 });
 
 const destination = new StationCombobox({
   input: document.querySelector("#destination-input"),
   listbox: document.querySelector("#destination-suggestions"),
   codeElement: document.querySelector("#destination-code"),
+  clearButton: document.querySelector("#clear-destination"),
   getOptions: filterStationOptions,
   onSelect: handleDestinationSelect,
   onInput: handleDestinationInput,
+  onClear: handleDestinationInput,
 });
 
 const lineSchematic = new LineSchematic({
@@ -78,6 +83,14 @@ function setSpecificDate(date) {
 
 function formatClockTime(date) {
   return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(date);
+}
+
+function formatTokyoClockTime(date) {
+  return new Intl.DateTimeFormat("en", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Tokyo",
+  }).format(date);
 }
 
 function selectedDate() {
@@ -159,6 +172,37 @@ function sideContent(side) {
   return { label: "Either side is similar", arrow: "↔" };
 }
 
+function renderNightResult({ recommendation, routeLineId, routeDirection, startCode, endCode, departureDate }) {
+  let relevantSunset = recommendation.solarEvents.sunset;
+  if (recommendation.solarEvents.sunrise && departureDate < recommendation.solarEvents.sunrise) {
+    relevantSunset = calculateSolarEvents(new Date(departureDate.getTime() - 86400000)).sunset;
+  }
+  const sunsetText = relevantSunset ? formatTokyoClockTime(relevantSunset) : "Unavailable";
+
+  result.dataset.state = "night";
+  delete result.dataset.side;
+  result.innerHTML = `
+    <div class="result-heading">
+      <span class="result-label">Night journey</span>
+      <span class="line-badge line-badge-${routeLineId}" aria-label="${LINES[routeLineId].name}" title="${LINES[routeLineId].name}">${LINES[routeLineId].code}</span>
+    </div>
+    <div class="answer night-answer">
+      <span class="side-arrow night-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"></path></svg>
+      </span>
+      <div><h2>It's night. No sun.</h2><p>${recommendation.start.name} <span class="route-code">${startCode}</span> → ${recommendation.end.name} <span class="route-code">${endCode}</span></p></div>
+    </div>
+    <div class="confidence-row night-meta">
+      <span class="night-status">Sun below horizon</span>
+      <span>${routeDirection}</span>
+    </div>
+    <p class="reason">There is no direct sunlight to avoid, so neither side has a shade advantage.</p>
+    <div class="night-fact">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18h12M4 14h16M12 3v7M8.5 6.5 12 10l3.5-3.5"></path></svg>
+      <div><span>Previous sunset</span><strong>${sunsetText}</strong><small>Calculated locally for Tokyo for this date.</small></div>
+    </div>`;
+}
+
 function renderRoutePrompt() {
   const start = origin.getSelection();
   const end = destination.getSelection();
@@ -188,11 +232,12 @@ function renderRecommendation() {
   }
 
   try {
+    const departureDate = selectedDate();
     const recommendation = getRecommendation({
       lineId: routeLineId,
       startName: start.name,
       endName: end.name,
-      date: selectedDate(),
+      date: departureDate,
     });
     const side = sideContent(recommendation.side);
     const headingDirection = describeBearing(recommendation.heading);
@@ -206,6 +251,11 @@ function renderRecommendation() {
       : `${headingDirection.short} bound`;
     const startCode = stationCodeFor(routeLineId, start.name);
     const endCode = stationCodeFor(routeLineId, end.name);
+
+    if (recommendation.isNight) {
+      renderNightResult({ recommendation, routeLineId, routeDirection, startCode, endCode, departureDate });
+      return;
+    }
 
     result.dataset.state = "ready";
     result.dataset.side = recommendation.side;

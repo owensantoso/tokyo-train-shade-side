@@ -124,6 +124,10 @@ body[data-line="yamanote"] .line-schematic-panel { --line-accent: var(--yamanote
 .combobox-shell input::placeholder { color: #7c8681; font-weight: 500; }
 .combobox-shell input[aria-invalid="true"] { color: var(--error); }
 .field-code { max-width: 42%; flex: 0 0 auto; padding: 4px 5px; border-radius: 2px; background: var(--ink); color: white; font-family: var(--font-technical); font-size: .58rem; font-weight: 800; line-height: 1.35; text-align: right; }
+.clear-station { width: 30px; height: 30px; padding: 0; flex: 0 0 30px; display: grid; place-items: center; border: 0; border-radius: 2px; background: transparent; color: var(--muted); }
+.clear-station[hidden] { display: none; }
+.clear-station:hover, .clear-station:focus-visible { background: var(--soft); color: var(--ink); outline: 0; }
+.clear-station svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 
 .swap-button { position: absolute; z-index: 25; top: calc(50% - 22px); right: 21px; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border: 2px solid var(--ink); border-radius: 3px; background: var(--yellow); color: var(--ink); transition: background-color 150ms ease, color 150ms ease; }
 .swap-button:hover { background: var(--ink); color: var(--yellow); }
@@ -170,19 +174,29 @@ body[data-line="yamanote"] .line-schematic-panel { --line-accent: var(--yamanote
 
 .result { min-width: 0; min-height: 290px; padding: 20px; align-self: start; border-top: 5px solid var(--yellow); border-radius: 3px; background: var(--ink); color: white; }
 .result[data-state="error"] { border-top-color: #ff6b6b; }
+.result[data-state="night"] { border-top-color: #dce7e2; }
 .result-heading { min-height: 25px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .result-label { color: #b8c1bd; }
 .result-step { color: var(--yellow); font-family: var(--font-technical); font-size: .75rem; font-weight: 700; }
 .empty-answer, .answer { display: flex; align-items: center; gap: 14px; }
 .empty-marker, .side-arrow { flex: 0 0 50px; height: 50px; display: grid; place-items: center; border: 2px solid var(--yellow); border-radius: 50%; color: var(--yellow); font-family: var(--font-technical); font-size: 1.6rem; font-weight: 800; }
 .side-arrow { background: var(--yellow); color: var(--ink); }
+.night-icon { background: #dce7e2; border-color: #dce7e2; }
+.night-icon svg { width: 28px; height: 28px; fill: var(--ink); }
 .empty-answer h2, .answer h2 { margin: 0 0 4px; font-family: var(--font-display); font-size: 1.65rem; letter-spacing: 0; }
 .empty-answer p, .answer p { margin: 0; color: #bdc6c2; font-size: .86rem; line-height: 1.45; }
 .route-code { color: var(--yellow); font-family: var(--font-technical); font-size: .68rem; font-weight: 700; }
 .confidence-row { margin-top: 17px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #bdc6c2; font-family: var(--font-technical); font-size: .7rem; text-transform: uppercase; }
 .confidence { padding: 5px 8px; border: 1px solid #93d4bf; border-radius: 2px; color: #c9f0e4; font-weight: 700; }
 .confidence-low { border-color: #f0cc78; color: #ffe5ad; }
+.night-status { padding: 5px 8px; border: 1px solid #9eaaa5; border-radius: 2px; color: #dce7e2; font-weight: 700; }
 .reason { margin: 16px 0 0; color: #e0e5e2; font-size: .9rem; line-height: 1.55; }
+.night-fact { margin-top: 18px; padding: 14px 0 0; display: flex; align-items: center; gap: 12px; border-top: 1px solid #4d5652; }
+.night-fact > svg { width: 25px; height: 25px; flex: 0 0 auto; fill: none; stroke: var(--yellow); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.night-fact div { display: grid; grid-template-columns: auto auto; align-items: baseline; gap: 3px 10px; }
+.night-fact span { color: #bdc6c2; font-family: var(--font-technical); font-size: .67rem; text-transform: uppercase; }
+.night-fact strong { color: white; font-size: .95rem; }
+.night-fact small { grid-column: 1 / -1; color: #9da8a3; font-size: .7rem; }
 
 .result-details { margin-top: 18px; border-top: 1px solid #4d5652; }
 .result-details summary { min-height: 48px; display: flex; align-items: center; justify-content: space-between; color: white; font-family: var(--font-technical); font-size: .78rem; font-weight: 700; cursor: pointer; list-style: none; text-transform: uppercase; }
