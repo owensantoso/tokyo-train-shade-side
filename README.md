@@ -10,7 +10,9 @@ Small static prototype for recommending the shadier side of a Tokyo train.
   and the JR Yamanote Line.
 - User searches for an origin and destination, optionally filtering by line first.
 - Search accepts English or Japanese station names and shows both in suggestions.
+- Station numbers are shown throughout and can be searched directly, such as `JY17` or `G09`.
 - All-lines search shows compact line-code badges and distinguishes shared stations.
+- Selecting a line opens a vector station diagram; click one station for the origin and another for the destination.
 - Arrow keys move through station suggestions, Enter selects, and Escape closes the list.
 - Choosing an origin establishes its line and opens destination suggestions automatically.
 - Swap origin and destination with one button.
@@ -18,6 +20,7 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - Uses approximate station coordinates and approximate sun position.
 - Explains train and sun bearings with 16-point compass labels while preserving raw degrees.
 - No maps, route planning, transfers, live train data, car layout data, or building shadows.
+- The station diagram is a coordinate-derived line schematic, not a geographic street map or route planner.
 
 ## Route assumptions
 

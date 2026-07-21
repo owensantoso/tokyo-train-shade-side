@@ -6,9 +6,10 @@ export function isTapGesture(start, end) {
 }
 
 export class StationCombobox {
-  constructor({ input, listbox, getOptions, onSelect, onInput }) {
+  constructor({ input, listbox, codeElement, getOptions, onSelect, onInput }) {
     this.input = input;
     this.listbox = listbox;
+    this.codeElement = codeElement;
     this.getOptions = getOptions;
     this.onSelect = onSelect;
     this.onInput = onInput;
@@ -35,12 +36,7 @@ export class StationCombobox {
       const option = event.target.closest("[data-option-index]");
       if (!option) return;
 
-      if (event.pointerType === "mouse") {
-        event.preventDefault();
-        this.choose(Number(option.dataset.optionIndex));
-        return;
-      }
-
+      if (event.pointerType === "mouse") event.preventDefault();
       this.pointerSession = {
         pointerId: event.pointerId,
         optionIndex: Number(option.dataset.optionIndex),
@@ -75,6 +71,10 @@ export class StationCombobox {
     this.selection = option;
     this.input.value = option?.name ?? "";
     this.input.setAttribute("aria-invalid", "false");
+    if (this.codeElement) {
+      this.codeElement.textContent = option?.stationCode ?? "";
+      this.codeElement.hidden = !option;
+    }
     this.close();
   }
 
@@ -86,6 +86,10 @@ export class StationCombobox {
     this.selection = null;
     this.input.value = "";
     this.input.setAttribute("aria-invalid", "false");
+    if (this.codeElement) {
+      this.codeElement.textContent = "";
+      this.codeElement.hidden = true;
+    }
     this.close();
   }
 
@@ -169,9 +173,9 @@ export class StationCombobox {
 
       const line = document.createElement("span");
       line.className = `line-badge line-badge-${option.lineId}`;
-      line.textContent = option.lineCode;
-      line.setAttribute("aria-label", option.lineName);
-      line.title = option.lineName;
+      line.textContent = option.stationCode;
+      line.setAttribute("aria-label", `${option.stationCode}, ${option.lineName}`);
+      line.title = `${option.stationCode} · ${option.lineName}`;
 
       item.append(name, line);
       this.listbox.append(item);

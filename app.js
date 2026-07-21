@@ -6,9 +6,12 @@ import {
   filterStationOptions,
   findClosestStation,
   getRecommendation,
+  getRoutePath,
   shouldPreserveDestination,
+  stationOptions,
   swapStations,
 } from "./shade.js";
+import { LineSchematic } from "./line-schematic.js";
 import { StationCombobox } from "./station-combobox.js";
 
 const form = document.querySelector("#shade-form");
@@ -26,6 +29,7 @@ const assumption = document.querySelector("#assumption");
 const origin = new StationCombobox({
   input: document.querySelector("#origin-input"),
   listbox: document.querySelector("#origin-suggestions"),
+  codeElement: document.querySelector("#origin-code"),
   getOptions: filterStationOptions,
   onSelect: handleOriginSelect,
   onInput: renderRecommendation,
@@ -34,9 +38,19 @@ const origin = new StationCombobox({
 const destination = new StationCombobox({
   input: document.querySelector("#destination-input"),
   listbox: document.querySelector("#destination-suggestions"),
+  codeElement: document.querySelector("#destination-code"),
   getOptions: filterStationOptions,
   onSelect: handleDestinationSelect,
   onInput: renderRecommendation,
+});
+
+const lineSchematic = new LineSchematic({
+  container: document.querySelector("#line-schematic"),
+  status: document.querySelector("#schematic-status"),
+  getLine: (lineId) => LINES[lineId],
+  getRoutePath,
+  getStationOptions: stationOptions,
+  onStationSelect: handleSchematicStationSelect,
 });
 
 function selectedLineId() {
@@ -104,6 +118,24 @@ function handleDestinationSelect(option) {
   if (!origin.getSelection()) window.requestAnimationFrame(() => origin.focusAndOpen());
 }
 
+function handleSchematicStationSelect(option) {
+  const start = origin.getSelection();
+  const end = destination.getSelection();
+  setLine(option.lineId);
+
+  if (!start) {
+    origin.setSelection(option);
+    if (end && (end.lineId !== option.lineId || end.name === option.name)) destination.clear();
+  } else if (!end) {
+    if (start.name === option.name) return;
+    destination.setSelection(option);
+  } else {
+    origin.setSelection(option);
+    destination.clear();
+  }
+  renderRecommendation();
+}
+
 function sideContent(side) {
   if (side === "left") return { label: "Sit on the left", arrow: "←" };
   if (side === "right") return { label: "Sit on the right", arrow: "→" };
@@ -131,6 +163,7 @@ function renderRecommendation() {
   nowLabel.textContent = `Now · ${formatClockTime(new Date())}`;
   const start = origin.getSelection();
   const end = destination.getSelection();
+  lineSchematic.render(selectedLineId(), start, end);
   if (!start || !end || start.lineId !== end.lineId) {
     renderRoutePrompt();
     return;
@@ -163,7 +196,7 @@ function renderRecommendation() {
       </div>
       <div class="answer">
         <span class="side-arrow" aria-hidden="true">${side.arrow}</span>
-        <div><h2>${side.label}</h2><p>${recommendation.start.name} → ${recommendation.end.name}</p></div>
+        <div><h2>${side.label}</h2><p>${recommendation.start.name} <span class="route-code">${start.stationCode}</span> → ${recommendation.end.name} <span class="route-code">${end.stationCode}</span></p></div>
       </div>
       <div class="confidence-row">
         <span class="confidence confidence-${recommendation.confidence}">${recommendation.confidence} confidence</span>
@@ -175,11 +208,18 @@ function renderRecommendation() {
         <div class="orientation-layout">
           <div class="orientation-plot" style="--train-angle: ${headingDegrees}deg; --sun-angle: ${sunAzimuthDegrees}deg" role="img" aria-label="Top-down compass: train heading ${headingDirection.label}, sun toward ${sunDirection.label}">
             <span class="compass-label compass-n">N</span><span class="compass-label compass-e">E</span><span class="compass-label compass-s">S</span><span class="compass-label compass-w">W</span>
-            <span class="compass-vector train-vector" aria-hidden="true"></span>
-            <span class="compass-vector sun-vector" aria-hidden="true"></span>
+            <span class="compass-vector train-vector" aria-hidden="true">
+              <svg class="vector-symbol" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="15" rx="3"></rect><path d="M8 7h8M8 12h.01M16 12h.01M8 18l-2 3M16 18l2 3"></path></svg>
+            </span>
+            <span class="compass-vector sun-vector" aria-hidden="true">
+              <svg class="vector-symbol" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+            </span>
             <span class="compass-center" aria-hidden="true"></span>
           </div>
-          <div class="orientation-legend"><span><i class="train-key"></i>Train</span><span><i class="sun-key"></i>Sun</span></div>
+          <div class="orientation-legend">
+            <span><svg class="legend-icon train-key" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="15" rx="3"></rect><path d="M8 7h8M8 12h.01M16 12h.01M8 18l-2 3M16 18l2 3"></path></svg>Train</span>
+            <span><svg class="legend-icon sun-key" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>Sun</span>
+          </div>
         </div>
         <dl class="direction-data">
           <div><dt>Train is heading</dt><dd><strong>${headingDirection.label} <span>${headingDirection.short}</span></strong><small>${headingDegrees}° clockwise from north</small></dd></div>
@@ -277,7 +317,6 @@ form.addEventListener("change", (event) => {
     locationStatus.textContent = "";
     delete locationStatus.dataset.state;
     renderRecommendation();
-    window.requestAnimationFrame(() => origin.focusAndOpen());
     return;
   }
   if (event.target.name === "time-mode") {

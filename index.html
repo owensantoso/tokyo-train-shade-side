@@ -16,7 +16,7 @@
         <span>Shade Seat</span>
       </a>
       <span class="rail-stripes" aria-hidden="true"><i></i><i></i></span>
-      <span class="prototype-label">Tokyo beta · v0.4</span>
+      <span class="prototype-label">Tokyo beta · v0.5</span>
     </header>
 
     <main id="main-content">
@@ -48,6 +48,14 @@
             </div>
           </fieldset>
 
+          <section class="line-schematic-panel" aria-labelledby="schematic-title">
+            <div class="schematic-heading">
+              <h2 id="schematic-title">Station diagram</h2>
+              <span id="schematic-status">No line selected</span>
+            </div>
+            <div id="line-schematic" class="line-schematic" tabindex="0"></div>
+          </section>
+
           <div class="route-board">
             <div class="route-heading">
               <span>Route</span>
@@ -62,6 +70,7 @@
                     <circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path>
                   </svg>
                   <input id="origin-input" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="origin-suggestions" autocomplete="off" placeholder="Type a station">
+                  <span id="origin-code" class="field-code" hidden></span>
                 </div>
                 <ul id="origin-suggestions" class="suggestions" role="listbox" aria-label="Origin station suggestions" hidden></ul>
               </div>
@@ -79,6 +88,7 @@
                     <circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path>
                   </svg>
                   <input id="destination-input" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="destination-suggestions" autocomplete="off" placeholder="Type a station">
+                  <span id="destination-code" class="field-code" hidden></span>
                 </div>
                 <ul id="destination-suggestions" class="suggestions" role="listbox" aria-label="Destination station suggestions" hidden></ul>
               </div>

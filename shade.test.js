@@ -13,6 +13,7 @@ import {
   getRoutePath,
   recommendShadeSide,
   shouldPreserveDestination,
+  stationCodeFor,
   stationOptions,
   stationNamesForLine,
   swapStations,
@@ -155,6 +156,28 @@ test("builds station search options for all lines or one selected line", () => {
   assert.deepEqual(sharedStations.map((option) => option.lineId), ["keio", "inokashira"]);
   assert.equal(stationOptions("inokashira").every((option) => option.lineId === "inokashira"), true);
   assert.equal(stationOptions("keio").length, LINES.keio.stations.length);
+});
+
+test("provides official station codes on every supported line", () => {
+  assert.equal(stationCodeFor("keio", "Shinjuku"), "KO01");
+  assert.equal(stationCodeFor("keio", "Chofu"), "KO18");
+  assert.equal(stationCodeFor("keio", "Tobitakyu"), "KO20");
+  assert.equal(stationCodeFor("keio", "Keio-Hachioji"), "KO34");
+  assert.equal(stationCodeFor("inokashira", "Kichijoji"), "IN17");
+  assert.equal(stationCodeFor("shinjuku", "Motoyawata"), "S21");
+  assert.equal(stationCodeFor("ginza", "Asakusa"), "G19");
+  assert.equal(stationCodeFor("chuo", "Takao"), "JC24");
+  assert.equal(stationCodeFor("yamanote", "Tokyo"), "JY01");
+  assert.equal(stationCodeFor("yamanote", "Osaki"), "JY24");
+  assert.equal(stationCodeFor("yamanote", "Takanawa Gateway"), "JY26");
+  assert.equal(stationCodeFor("yamanote", "Yurakucho"), "JY30");
+});
+
+test("searches by station code", () => {
+  assert.deepEqual(filterStationOptions("JY17", "all").map(({ lineId, name }) => [lineId, name]), [
+    ["yamanote", "Shinjuku"],
+  ]);
+  assert.equal(filterStationOptions("G09", "ginza")[0].name, "Ginza");
 });
 
 test("filters station suggestions with prefix matches before substring matches", () => {

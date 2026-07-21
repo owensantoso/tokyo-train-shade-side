@@ -169,6 +169,7 @@ export const LINES = {
     shortName: "Yamanote",
     code: "JY",
     circular: true,
+    stationNumbers: [24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 30, 29, 28, 27, 26, 25],
     assumption:
       "Models the 30-station Yamanote loop and uses the shorter station arc. The shade result reflects the train's direction when leaving the origin; the train curves around the loop, so the sunnier side can change during longer trips.",
     stations: [
@@ -218,6 +219,14 @@ export function stationNamesForLine(lineId) {
   return LINES[lineId].stations.map((station) => station.name);
 }
 
+export function stationCodeFor(lineId, stationName) {
+  const line = LINES[lineId];
+  const index = line?.stations.findIndex(({ name }) => name === stationName) ?? -1;
+  if (!line || index < 0) return null;
+  const number = line.stationNumbers?.[index] ?? index + 1;
+  return `${line.code}${String(number).padStart(2, "0")}`;
+}
+
 export function stationOptions(lineId = "all") {
   const lineIds = lineId === "all" ? Object.keys(LINES) : [lineId];
   return lineIds.flatMap((id) => {
@@ -229,6 +238,7 @@ export function stationOptions(lineId = "all") {
       lineName: line.name,
       lineLabel: line.shortName,
       lineCode: line.code,
+      stationCode: stationCodeFor(id, station.name),
     }));
   });
 }
@@ -242,7 +252,7 @@ export function filterStationOptions(query, lineId = "all") {
 
   return options
     .map((option, index) => {
-      const normalizedNames = [option.name, option.nameJa].map(normalizeStationQuery);
+      const normalizedNames = [option.name, option.nameJa, option.stationCode].map(normalizeStationQuery);
       const matchIndex = normalizedNames.reduce((best, name) => {
         const index = name.indexOf(normalizedQuery);
         return index >= 0 && (best < 0 || index < best) ? index : best;
