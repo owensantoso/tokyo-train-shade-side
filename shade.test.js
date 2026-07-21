@@ -14,6 +14,12 @@ import {
   stationNamesForLine,
   swapStations,
 } from "./shade.js";
+import { isTapGesture } from "./station-combobox.js";
+
+test("distinguishes a touch tap from a scrolling gesture", () => {
+  assert.equal(isTapGesture({ x: 10, y: 20 }, { x: 14, y: 25 }), true);
+  assert.equal(isTapGesture({ x: 10, y: 20 }, { x: 10, y: 32 }), false);
+});
 
 test("includes all supported Tokyo line corridors", () => {
   assert.deepEqual(Object.keys(LINES), ["keio", "inokashira", "shinjuku", "ginza", "chuo"]);

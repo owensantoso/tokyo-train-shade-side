@@ -100,7 +100,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible, .brand:focus-v
 .swap-button:active svg { transform: rotate(180deg); }
 .swap-button svg { display: block; transition: transform 180ms ease; }
 
-.suggestions { position: absolute; z-index: 30; top: calc(100% + 5px); right: 0; left: 0; max-height: 340px; margin: 0; padding: 4px; overflow-y: auto; border: 2px solid var(--ink); border-radius: 2px; background: white; list-style: none; }
+.suggestions { position: absolute; z-index: 30; top: calc(100% + 5px); right: 0; left: 0; max-height: 340px; margin: 0; padding: 4px; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; border: 2px solid var(--ink); border-radius: 2px; background: white; list-style: none; }
 .station-suggestion { min-height: 46px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--soft); cursor: pointer; }
 .station-suggestion:last-child { border-bottom: 0; }
 .station-suggestion:hover, .station-suggestion.is-active { background: var(--ink); color: white; }

@@ -1,4 +1,9 @@
 const MAX_VISIBLE_OPTIONS = 9;
+const TAP_MOVEMENT_THRESHOLD = 8;
+
+export function isTapGesture(start, end) {
+  return Math.hypot(end.x - start.x, end.y - start.y) <= TAP_MOVEMENT_THRESHOLD;
+}
 
 export class StationCombobox {
   constructor({ input, listbox, getOptions, onSelect, onInput }) {
@@ -11,6 +16,7 @@ export class StationCombobox {
     this.selection = null;
     this.options = [];
     this.activeIndex = -1;
+    this.pointerSession = null;
 
     this.input.addEventListener("focus", () => this.open());
     this.input.addEventListener("input", () => {
@@ -20,13 +26,44 @@ export class StationCombobox {
     });
     this.input.addEventListener("keydown", (event) => this.handleKeydown(event));
     this.input.addEventListener("blur", () => {
-      window.setTimeout(() => this.close(), 100);
+      const listInteraction = this.pointerSession !== null;
+      window.setTimeout(() => {
+        if (!listInteraction) this.close();
+      }, 100);
     });
     this.listbox.addEventListener("pointerdown", (event) => {
       const option = event.target.closest("[data-option-index]");
       if (!option) return;
-      event.preventDefault();
-      this.choose(Number(option.dataset.optionIndex));
+
+      if (event.pointerType === "mouse") {
+        event.preventDefault();
+        this.choose(Number(option.dataset.optionIndex));
+        return;
+      }
+
+      this.pointerSession = {
+        pointerId: event.pointerId,
+        optionIndex: Number(option.dataset.optionIndex),
+        start: { x: event.clientX, y: event.clientY },
+      };
+    });
+    this.listbox.addEventListener("pointerup", (event) => {
+      const session = this.pointerSession;
+      if (!session || session.pointerId !== event.pointerId) return;
+
+      this.pointerSession = null;
+      const option = event.target.closest("[data-option-index]");
+      const endedOnSameOption = Number(option?.dataset.optionIndex) === session.optionIndex;
+      if (endedOnSameOption && isTapGesture(session.start, { x: event.clientX, y: event.clientY })) {
+        event.preventDefault();
+        this.choose(session.optionIndex);
+      }
+    });
+    this.listbox.addEventListener("pointercancel", () => {
+      this.pointerSession = null;
+    });
+    document.addEventListener("pointerdown", (event) => {
+      if (event.target !== this.input && !this.listbox.contains(event.target)) this.close();
     });
   }
 
