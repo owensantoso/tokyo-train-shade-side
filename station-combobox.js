@@ -122,11 +122,19 @@ export class StationCombobox {
 
       const name = document.createElement("span");
       name.className = "suggestion-name";
-      name.textContent = option.name;
+      const nameEn = document.createElement("span");
+      nameEn.textContent = option.name;
+      const nameJa = document.createElement("span");
+      nameJa.className = "suggestion-name-ja";
+      nameJa.lang = "ja";
+      nameJa.textContent = option.nameJa;
+      name.append(nameEn, nameJa);
 
       const line = document.createElement("span");
       line.className = `line-badge line-badge-${option.lineId}`;
-      line.textContent = option.lineLabel;
+      line.textContent = option.lineCode;
+      line.setAttribute("aria-label", option.lineName);
+      line.title = option.lineName;
 
       item.append(name, line);
       this.listbox.append(item);

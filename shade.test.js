@@ -15,8 +15,8 @@ import {
   swapStations,
 } from "./shade.js";
 
-test("includes Keio New Line and Inokashira station choices", () => {
-  assert.deepEqual(Object.keys(LINES), ["keio", "inokashira"]);
+test("includes all supported Tokyo line corridors", () => {
+  assert.deepEqual(Object.keys(LINES), ["keio", "inokashira", "shinjuku", "ginza", "chuo"]);
 
   const keioStations = stationNamesForLine("keio");
   assert.equal(keioStations[0], "Shinjuku");
@@ -29,6 +29,15 @@ test("includes Keio New Line and Inokashira station choices", () => {
   assert.equal(inokashiraStations[0], "Shibuya");
   assert.ok(inokashiraStations.includes("Meidaimae"));
   assert.equal(inokashiraStations.at(-1), "Kichijoji");
+
+  assert.deepEqual(stationNamesForLine("shinjuku").slice(0, 2), ["Shinjuku", "Shinjuku-sanchome"]);
+  assert.equal(stationNamesForLine("shinjuku").at(-1), "Motoyawata");
+  assert.equal(stationNamesForLine("ginza").length, 19);
+  assert.deepEqual(stationNamesForLine("ginza").slice(0, 2), ["Shibuya", "Omote-sando"]);
+  assert.equal(stationNamesForLine("chuo").at(-1), "Takao");
+  assert.equal(LINES.shinjuku.code, "S");
+  assert.equal(LINES.ginza.code, "G");
+  assert.equal(LINES.chuo.code, "JC");
 });
 
 test("calculates eastbound and westbound bearings from station coordinates", () => {
@@ -114,6 +123,21 @@ test("filters station suggestions with prefix matches before substring matches",
   assert.ok(firstSubstringIndex > 0);
   assert.equal(shMatches.slice(0, firstSubstringIndex).every((option) => option.name.toLowerCase().startsWith("sh")), true);
   assert.equal(filterStationOptions("shibuya", "keio").length, 0);
+});
+
+test("searches Japanese station names and keeps line identity", () => {
+  const shinjukuMatches = filterStationOptions("新宿", "all");
+  assert.deepEqual(shinjukuMatches.map((option) => [option.lineId, option.name]), [
+    ["keio", "Shinjuku"],
+    ["shinjuku", "Shinjuku"],
+    ["shinjuku", "Shinjuku-sanchome"],
+    ["chuo", "Shinjuku"],
+  ]);
+
+  const ginzaMatch = filterStationOptions("浅草", "ginza");
+  assert.equal(ginzaMatch.length, 1);
+  assert.equal(ginzaMatch[0].name, "Asakusa");
+  assert.equal(ginzaMatch[0].lineCode, "G");
 });
 
 test("finds the closest station across all lines and reports its line", () => {

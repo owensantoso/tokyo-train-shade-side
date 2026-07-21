@@ -65,7 +65,7 @@ function setLine(lineId, { clearRoute = false } = {}) {
   document.body.dataset.line = lineId;
   routeLineLabel.textContent = lineId === "all" ? "All supported lines" : LINES[lineId].name;
   assumption.textContent = lineId === "all"
-    ? "Searches Keio Line / Keio New Line and Inokashira Line. Choosing an origin sets the line for the trip."
+    ? "Searches five supported Tokyo corridors. Choosing an origin sets the line for the trip; transfers and cross-line through services are not modeled."
     : LINES[lineId].assumption;
   if (clearRoute) {
     origin.clear();
@@ -103,7 +103,7 @@ function renderRoutePrompt() {
   const next = start ? "Choose a destination" : "Start with your origin";
   const detail = start
     ? "Type a station or pick one from the open suggestions."
-    : "Search all lines, or filter to Keio/New Line or Inokashira first.";
+    : "Search all supported lines, or use a line symbol above to narrow the station list.";
 
   origin.input.setAttribute("aria-invalid", String(Boolean(origin.input.value && !start)));
   destination.input.setAttribute("aria-invalid", String(Boolean(destination.input.value && !end)));
@@ -143,7 +143,7 @@ function renderRecommendation() {
     result.innerHTML = `
       <div class="result-heading">
         <span class="result-label">Best shade</span>
-        <span class="line-badge line-badge-${start.lineId}">${LINES[start.lineId].shortName}</span>
+        <span class="line-badge line-badge-${start.lineId}" aria-label="${LINES[start.lineId].name}" title="${LINES[start.lineId].name}">${LINES[start.lineId].code}</span>
       </div>
       <div class="answer">
         <span class="side-arrow" aria-hidden="true">${side.arrow}</span>
@@ -228,7 +228,7 @@ function useClosestStation() {
       origin.setSelection(closest.station);
       destination.clear();
       locationStatus.dataset.state = "success";
-      locationStatus.textContent = `Closest on ${LINES[closest.lineId].name}: ${closest.station.name} · about ${formatDistance(closest.distanceKm)} away.`;
+      locationStatus.textContent = `Closest on ${LINES[closest.lineId].name}: ${closest.station.name} (${closest.station.nameJa}) · about ${formatDistance(closest.distanceKm)} away.`;
       locateButton.disabled = false;
       delete locateButton.dataset.loading;
       renderRecommendation();

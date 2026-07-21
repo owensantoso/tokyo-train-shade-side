@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#f2f4f3">
-    <meta name="description" content="Find the side of Keio and Inokashira trains likely to have less direct sun.">
+    <meta name="description" content="Find the side of supported Tokyo trains likely to have less direct sun.">
     <title>Shade Seat · Tokyo train sun guide</title>
     <link rel="stylesheet" href="styles.css">
   </head>
@@ -16,7 +16,7 @@
         <span>Shade Seat</span>
       </a>
       <span class="rail-stripes" aria-hidden="true"><i></i><i></i></span>
-      <span class="prototype-label">Tokyo beta · v0.2</span>
+      <span class="prototype-label">Tokyo beta · v0.3</span>
     </header>
 
     <main id="main-content">
@@ -32,11 +32,17 @@
             <legend>Filter by train line</legend>
             <div class="segmented-control line-control">
               <input id="line-all" name="line" type="radio" value="all" checked>
-              <label for="line-all">All lines</label>
+              <label for="line-all"><span class="picker-code picker-code-all">ALL</span><span>All lines</span></label>
               <input id="line-keio" name="line" type="radio" value="keio">
-              <label for="line-keio">Keio + New</label>
+              <label for="line-keio"><span class="picker-code line-badge-keio">KO</span><span>Keio + New</span></label>
               <input id="line-inokashira" name="line" type="radio" value="inokashira">
-              <label for="line-inokashira">Inokashira</label>
+              <label for="line-inokashira"><span class="picker-code line-badge-inokashira">IN</span><span>Inokashira</span></label>
+              <input id="line-shinjuku" name="line" type="radio" value="shinjuku">
+              <label for="line-shinjuku"><span class="picker-code line-badge-shinjuku">S</span><span>Shinjuku</span></label>
+              <input id="line-ginza" name="line" type="radio" value="ginza">
+              <label for="line-ginza"><span class="picker-code line-badge-ginza">G</span><span>Ginza</span></label>
+              <input id="line-chuo" name="line" type="radio" value="chuo">
+              <label for="line-chuo"><span class="picker-code line-badge-chuo">JC</span><span>Chuo Rapid</span></label>
             </div>
           </fieldset>
 
