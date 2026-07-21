@@ -7,7 +7,8 @@ import {
   findClosestStation,
   getRecommendation,
   getRoutePath,
-  shouldPreserveDestination,
+  resolveRouteLine,
+  stationCodeFor,
   stationOptions,
   swapStations,
 } from "./shade.js";
@@ -32,7 +33,7 @@ const origin = new StationCombobox({
   codeElement: document.querySelector("#origin-code"),
   getOptions: filterStationOptions,
   onSelect: handleOriginSelect,
-  onInput: renderRecommendation,
+  onInput: handleOriginInput,
 });
 
 const destination = new StationCombobox({
@@ -41,7 +42,7 @@ const destination = new StationCombobox({
   codeElement: document.querySelector("#destination-code"),
   getOptions: filterStationOptions,
   onSelect: handleDestinationSelect,
-  onInput: renderRecommendation,
+  onInput: handleDestinationInput,
 });
 
 const lineSchematic = new LineSchematic({
@@ -92,7 +93,7 @@ function setLine(lineId, { clearRoute = false } = {}) {
   document.body.dataset.line = lineId;
   routeLineLabel.textContent = lineId === "all" ? "All supported lines" : LINES[lineId].name;
   assumption.textContent = lineId === "all"
-    ? "Searches six supported Tokyo corridors. Choosing an origin sets the line for the trip; transfers and cross-line through services are not modeled."
+    ? "Searches six supported Tokyo corridors. Shared stations keep every available line until both endpoints identify a direct route; transfers are not modeled."
     : LINES[lineId].assumption;
   if (clearRoute) {
     origin.clear();
@@ -100,22 +101,38 @@ function setLine(lineId, { clearRoute = false } = {}) {
   }
 }
 
+function syncStationScopes() {
+  const lineId = selectedLineId();
+  const start = origin.getSelection();
+  const end = destination.getSelection();
+  origin.setLine(lineId === "all" && !start && end ? end.lineIds : lineId);
+  destination.setLine(lineId === "all" && start ? start.lineIds : lineId);
+}
+
 function handleOriginSelect(option) {
-  setLine(option.lineId);
   const destinationSelection = destination.getSelection();
-  if (destinationSelection && destinationSelection.lineId !== option.lineId) destination.clear();
+  if (destinationSelection && !resolveRouteLine(option, destinationSelection, selectedLineId())) {
+    destination.clear();
+  }
+  syncStationScopes();
   renderRecommendation();
   window.requestAnimationFrame(() => destination.focusAndOpen());
 }
 
+function handleOriginInput() {
+  syncStationScopes();
+  renderRecommendation();
+}
+
 function handleDestinationSelect(option) {
-  if (selectedLineId() === "all") {
-    setLine(option.lineId);
-    const originSelection = origin.getSelection();
-    if (originSelection && originSelection.lineId !== option.lineId) origin.clear();
-  }
+  syncStationScopes();
   renderRecommendation();
   if (!origin.getSelection()) window.requestAnimationFrame(() => origin.focusAndOpen());
+}
+
+function handleDestinationInput() {
+  syncStationScopes();
+  renderRecommendation();
 }
 
 function handleSchematicStationSelect(option) {
@@ -163,15 +180,16 @@ function renderRecommendation() {
   nowLabel.textContent = `Now · ${formatClockTime(new Date())}`;
   const start = origin.getSelection();
   const end = destination.getSelection();
+  const routeLineId = resolveRouteLine(start, end, selectedLineId());
   lineSchematic.render(selectedLineId(), start, end);
-  if (!start || !end || start.lineId !== end.lineId) {
+  if (!start || !end || !routeLineId) {
     renderRoutePrompt();
     return;
   }
 
   try {
     const recommendation = getRecommendation({
-      lineId: start.lineId,
+      lineId: routeLineId,
       startName: start.name,
       endName: end.name,
       date: selectedDate(),
@@ -183,20 +201,22 @@ function renderRecommendation() {
     const headingDegrees = Math.round(recommendation.heading);
     const sunAzimuthDegrees = Math.round(recommendation.sun.azimuth);
     const sunElevationDegrees = Math.round(recommendation.sun.elevation);
-    const routeDirection = start.lineId === "yamanote"
+    const routeDirection = routeLineId === "yamanote"
       ? `${recommendation.direction.startsWith("clockwise") ? "Outer" : "Inner"} loop · ${headingDirection.short}`
       : `${headingDirection.short} bound`;
+    const startCode = stationCodeFor(routeLineId, start.name);
+    const endCode = stationCodeFor(routeLineId, end.name);
 
     result.dataset.state = "ready";
     result.dataset.side = recommendation.side;
     result.innerHTML = `
       <div class="result-heading">
         <span class="result-label">Best shade</span>
-        <span class="line-badge line-badge-${start.lineId}" aria-label="${LINES[start.lineId].name}" title="${LINES[start.lineId].name}">${LINES[start.lineId].code}</span>
+        <span class="line-badge line-badge-${routeLineId}" aria-label="${LINES[routeLineId].name}" title="${LINES[routeLineId].name}">${LINES[routeLineId].code}</span>
       </div>
       <div class="answer">
         <span class="side-arrow" aria-hidden="true">${side.arrow}</span>
-        <div><h2>${side.label}</h2><p>${recommendation.start.name} <span class="route-code">${start.stationCode}</span> → ${recommendation.end.name} <span class="route-code">${end.stationCode}</span></p></div>
+        <div><h2>${side.label}</h2><p>${recommendation.start.name} <span class="route-code">${startCode}</span> → ${recommendation.end.name} <span class="route-code">${endCode}</span></p></div>
       </div>
       <div class="confidence-row">
         <span class="confidence confidence-${recommendation.confidence}">${recommendation.confidence} confidence</span>
@@ -254,6 +274,7 @@ function swapRoute() {
   const swapped = swapStations(start?.name ?? null, end?.name ?? null);
   origin.setSelection(end ? { ...end, name: swapped.startName } : null);
   destination.setSelection(start ? { ...start, name: swapped.endName } : null);
+  syncStationScopes();
   renderRecommendation();
   if (!origin.getSelection() || !destination.getSelection()) {
     const emptyCombobox = origin.getSelection() ? destination : origin;
@@ -285,13 +306,19 @@ function useClosestStation() {
   locationStatus.textContent = "Finding your closest station…";
   navigator.geolocation.getCurrentPosition(
     ({ coords }) => {
-      const closest = findClosestStation(selectedLineId(), coords.latitude, coords.longitude);
+      const requestedLineId = selectedLineId();
+      const closest = findClosestStation(requestedLineId, coords.latitude, coords.longitude);
       const destinationSelection = destination.getSelection();
-      setLine(closest.lineId);
       origin.setSelection(closest.station);
-      if (!shouldPreserveDestination(destinationSelection, closest.lineId)) destination.clear();
+      if (destinationSelection && !resolveRouteLine(closest.station, destinationSelection, requestedLineId)) {
+        destination.clear();
+      }
+      syncStationScopes();
       locationStatus.dataset.state = "success";
-      locationStatus.textContent = `Closest on ${LINES[closest.lineId].name}: ${closest.station.name} (${closest.station.nameJa}) · about ${formatDistance(closest.distanceKm)} away.`;
+      const locationContext = requestedLineId === "all"
+        ? `Served by ${closest.station.stationCodes.join(", ")}`
+        : LINES[requestedLineId].name;
+      locationStatus.textContent = `Closest station: ${closest.station.name} (${closest.station.nameJa}) · ${locationContext} · about ${formatDistance(closest.distanceKm)} away.`;
       locateButton.disabled = false;
       delete locateButton.dataset.loading;
       renderRecommendation();

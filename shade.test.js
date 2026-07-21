@@ -12,6 +12,7 @@ import {
   findClosestStation,
   getRoutePath,
   recommendShadeSide,
+  resolveRouteLine,
   shouldPreserveDestination,
   stationCodeFor,
   stationOptions,
@@ -136,6 +137,7 @@ test("swaps origin and destination station names", () => {
 test("preserves a destination when closest station resolves to the same line", () => {
   assert.equal(shouldPreserveDestination({ lineId: "yamanote" }, "yamanote"), true);
   assert.equal(shouldPreserveDestination({ lineId: "chuo" }, "yamanote"), false);
+  assert.equal(shouldPreserveDestination({ lineIds: ["inokashira", "ginza", "yamanote"] }, "inokashira"), true);
   assert.equal(shouldPreserveDestination(null, "yamanote"), true);
 });
 
@@ -151,11 +153,39 @@ test("builds useful future departure presets", () => {
 
 test("builds station search options for all lines or one selected line", () => {
   const allOptions = stationOptions("all");
-  const sharedStations = allOptions.filter((option) => option.name === "Meidaimae");
+  const sharedStation = allOptions.find((option) => option.name === "Meidaimae");
 
-  assert.deepEqual(sharedStations.map((option) => option.lineId), ["keio", "inokashira"]);
+  assert.deepEqual(sharedStation.lineIds, ["keio", "inokashira"]);
+  assert.deepEqual(sharedStation.stationCodes, ["KO06", "IN08"]);
   assert.equal(stationOptions("inokashira").every((option) => option.lineId === "inokashira"), true);
   assert.equal(stationOptions("keio").length, LINES.keio.stations.length);
+});
+
+test("groups a shared station as one place with every supported line", () => {
+  const shibuya = stationOptions("all").find((option) => option.name === "Shibuya");
+
+  assert.deepEqual(shibuya.lineIds, ["inokashira", "ginza", "yamanote"]);
+  assert.deepEqual(shibuya.stationCodes, ["IN01", "G01", "JY20"]);
+});
+
+test("limits destinations to the union of lines serving a shared origin", () => {
+  const options = stationOptions(["inokashira", "ginza", "yamanote"]);
+
+  assert.ok(options.some(({ name }) => name === "Kichijoji"));
+  assert.ok(options.some(({ name }) => name === "Asakusa"));
+  assert.ok(options.some(({ name }) => name === "Shinjuku"));
+  assert.equal(options.some(({ name }) => name === "Keio-Hachioji"), false);
+});
+
+test("resolves the direct common line between shared station places", () => {
+  const options = stationOptions("all");
+  const shibuya = options.find(({ name }) => name === "Shibuya");
+  const kichijoji = options.find(({ name }) => name === "Kichijoji");
+  const shinjuku = options.find(({ name }) => name === "Shinjuku");
+
+  assert.equal(resolveRouteLine(shibuya, kichijoji), "inokashira");
+  assert.equal(resolveRouteLine(shibuya, shinjuku), "yamanote");
+  assert.equal(resolveRouteLine(shibuya, shinjuku, "ginza"), null);
 });
 
 test("provides official station codes on every supported line", () => {
@@ -174,16 +204,16 @@ test("provides official station codes on every supported line", () => {
 });
 
 test("searches by station code", () => {
-  assert.deepEqual(filterStationOptions("JY17", "all").map(({ lineId, name }) => [lineId, name]), [
-    ["yamanote", "Shinjuku"],
-  ]);
+  const [shinjuku] = filterStationOptions("JY17", "all");
+  assert.equal(shinjuku.name, "Shinjuku");
+  assert.ok(shinjuku.lineIds.includes("yamanote"));
   assert.equal(filterStationOptions("G09", "ginza")[0].name, "Ginza");
 });
 
 test("filters station suggestions with prefix matches before substring matches", () => {
   const sharedMatches = filterStationOptions("meidai", "all");
-  assert.equal(sharedMatches.length, 2);
-  assert.deepEqual(sharedMatches.map((option) => option.lineId), ["keio", "inokashira"]);
+  assert.equal(sharedMatches.length, 1);
+  assert.deepEqual(sharedMatches[0].lineIds, ["keio", "inokashira"]);
 
   const shMatches = filterStationOptions("sh", "all");
   const firstSubstringIndex = shMatches.findIndex((option) => !option.name.toLowerCase().startsWith("sh"));
@@ -194,13 +224,10 @@ test("filters station suggestions with prefix matches before substring matches",
 
 test("searches Japanese station names and keeps line identity", () => {
   const shinjukuMatches = filterStationOptions("新宿", "all");
-  assert.deepEqual(shinjukuMatches.map((option) => [option.lineId, option.name]), [
-    ["keio", "Shinjuku"],
-    ["shinjuku", "Shinjuku"],
-    ["shinjuku", "Shinjuku-sanchome"],
-    ["chuo", "Shinjuku"],
-    ["yamanote", "Shinjuku"],
-  ]);
+  assert.equal(shinjukuMatches[0].name, "Shinjuku");
+  assert.deepEqual(shinjukuMatches[0].lineIds, ["keio", "shinjuku", "chuo", "yamanote"]);
+  assert.equal(shinjukuMatches[1].name, "Shinjuku-sanchome");
+  assert.deepEqual(shinjukuMatches[1].lineIds, ["shinjuku"]);
 
   const ginzaMatch = filterStationOptions("浅草", "ginza");
   assert.equal(ginzaMatch.length, 1);
@@ -211,7 +238,8 @@ test("searches Japanese station names and keeps line identity", () => {
 test("finds the closest station across all lines and reports its line", () => {
   const closest = findClosestStation("all", 35.658, 139.7016);
   assert.equal(closest.station.name, "Shibuya");
-  assert.equal(closest.lineId, "inokashira");
+  assert.equal(closest.lineId, null);
+  assert.deepEqual(closest.station.lineIds, ["inokashira", "ginza", "yamanote"]);
 });
 
 test("turns raw bearings into 16-point compass directions", () => {

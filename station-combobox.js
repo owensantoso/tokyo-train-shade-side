@@ -73,6 +73,7 @@ export class StationCombobox {
     this.input.setAttribute("aria-invalid", "false");
     if (this.codeElement) {
       this.codeElement.textContent = option?.stationCode ?? "";
+      this.codeElement.title = option?.lineName ?? "";
       this.codeElement.hidden = !option;
     }
     this.close();
@@ -171,13 +172,19 @@ export class StationCombobox {
       nameJa.textContent = option.nameJa;
       name.append(nameEn, nameJa);
 
-      const line = document.createElement("span");
-      line.className = `line-badge line-badge-${option.lineId}`;
-      line.textContent = option.stationCode;
-      line.setAttribute("aria-label", `${option.stationCode}, ${option.lineName}`);
-      line.title = `${option.stationCode} · ${option.lineName}`;
+      const lines = document.createElement("span");
+      lines.className = "suggestion-lines";
+      option.lineIds.forEach((lineId, lineIndex) => {
+        const line = document.createElement("span");
+        const stationCode = option.stationCodes[lineIndex];
+        line.className = `line-badge line-badge-${lineId}`;
+        line.textContent = stationCode;
+        line.setAttribute("aria-label", `${stationCode}, ${option.lineNames[lineIndex]}`);
+        lines.append(line);
+      });
+      lines.title = option.lineName;
 
-      item.append(name, line);
+      item.append(name, lines);
       this.listbox.append(item);
     });
   }

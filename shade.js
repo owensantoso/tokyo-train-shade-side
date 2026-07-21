@@ -227,8 +227,7 @@ export function stationCodeFor(lineId, stationName) {
   return `${line.code}${String(number).padStart(2, "0")}`;
 }
 
-export function stationOptions(lineId = "all") {
-  const lineIds = lineId === "all" ? Object.keys(LINES) : [lineId];
+function lineStationOptions(lineIds) {
   return lineIds.flatMap((id) => {
     const line = LINES[id];
     if (!line) return [];
@@ -236,11 +235,42 @@ export function stationOptions(lineId = "all") {
       ...station,
       lineId: id,
       lineName: line.name,
+      lineNames: [line.name],
       lineLabel: line.shortName,
       lineCode: line.code,
       stationCode: stationCodeFor(id, station.name),
+      lineIds: [id],
+      stationCodes: [stationCodeFor(id, station.name)],
     }));
   });
+}
+
+function groupStationPlaces(options) {
+  const places = new Map();
+  options.forEach((option) => {
+    const existing = places.get(option.name);
+    if (!existing) {
+      places.set(option.name, { ...option });
+      return;
+    }
+    existing.lineIds.push(option.lineId);
+    existing.lineNames.push(option.lineName);
+    existing.stationCodes.push(option.stationCode);
+    existing.lineId = null;
+    existing.lineName = existing.lineIds.map((id) => LINES[id].name).join(", ");
+    existing.lineLabel = existing.lineIds.map((id) => LINES[id].shortName).join(", ");
+    existing.lineCode = existing.lineIds.map((id) => LINES[id].code).join("/");
+    existing.stationCode = existing.stationCodes.join(" · ");
+  });
+  return [...places.values()];
+}
+
+export function stationOptions(lineScope = "all") {
+  if (lineScope !== "all" && !Array.isArray(lineScope)) {
+    return lineStationOptions([lineScope]);
+  }
+  const lineIds = lineScope === "all" ? Object.keys(LINES) : lineScope;
+  return groupStationPlaces(lineStationOptions(lineIds));
 }
 
 const normalizeStationQuery = (value) => value.trim().toLowerCase().replace(/[\s-]+/g, "");
@@ -252,7 +282,7 @@ export function filterStationOptions(query, lineId = "all") {
 
   return options
     .map((option, index) => {
-      const normalizedNames = [option.name, option.nameJa, option.stationCode].map(normalizeStationQuery);
+      const normalizedNames = [option.name, option.nameJa, ...option.stationCodes].map(normalizeStationQuery);
       const matchIndex = normalizedNames.reduce((best, name) => {
         const index = name.indexOf(normalizedQuery);
         return index >= 0 && (best < 0 || index < best) ? index : best;
@@ -301,9 +331,21 @@ export function findClosestStation(lineId, lat, lon) {
   return options.reduce((closest, station) => {
     const distanceKm = calculateDistanceKm(location, station);
     return !closest || distanceKm < closest.distanceKm
-      ? { station, lineId: station.lineId, distanceKm }
+      ? { station, lineId: station.lineId ?? null, distanceKm }
       : closest;
   }, null);
+}
+
+export function resolveRouteLine(start, end, preferredLineId = "all") {
+  if (!start || !end) return null;
+  const startLines = start.lineIds ?? [start.lineId];
+  const endLines = end.lineIds ?? [end.lineId];
+  if (preferredLineId !== "all") {
+    return startLines.includes(preferredLineId) && endLines.includes(preferredLineId)
+      ? preferredLineId
+      : null;
+  }
+  return startLines.find((lineId) => endLines.includes(lineId)) ?? null;
 }
 
 export function swapStations(startName, endName) {
@@ -311,7 +353,7 @@ export function swapStations(startName, endName) {
 }
 
 export function shouldPreserveDestination(destinationSelection, lineId) {
-  return !destinationSelection || destinationSelection.lineId === lineId;
+  return !destinationSelection || (destinationSelection.lineIds ?? [destinationSelection.lineId]).includes(lineId);
 }
 
 export function departurePreset(now, preset) {

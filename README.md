@@ -11,12 +11,12 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - User searches for an origin and destination, optionally filtering by line first.
 - Search accepts English or Japanese station names and shows both in suggestions.
 - Station numbers are shown throughout and can be searched directly, such as `JY17` or `G09`.
-- All-lines search shows compact line-code badges and distinguishes shared stations.
+- All-lines search groups shared stations into one place and shows every applicable line code.
 - Selecting a line opens a vector station diagram; click one station for the origin and another for the destination.
 - Arrow keys move through station suggestions, Enter selects, and Escape closes the list.
-- Choosing an origin establishes its line and opens destination suggestions automatically.
+- Choosing a shared origin keeps every directly reachable line available; the line resolves after the destination is selected.
 - Swap origin and destination with one button.
-- Optionally choose the closest origin station on the selected line using browser location.
+- Optionally choose the closest origin station using browser location, across all lines or within an explicit line filter.
 - Uses approximate station coordinates and approximate sun position.
 - Explains train and sun bearings with 16-point compass labels while preserving raw degrees.
 - No maps, route planning, transfers, live train data, car layout data, or building shadows.
@@ -41,7 +41,7 @@ The station-board interface recalculates immediately when the line, route, or de
 - Location is requested only after pressing the closest-station button.
 - Coordinates stay in the browser and are not stored or sent to a server.
 - Geolocation normally requires HTTPS or localhost; the GitHub Pages deployment uses HTTPS.
-- Closest means straight-line distance to stations on the selected line, not walking distance.
+- Closest means straight-line distance across all supported lines, or within the explicit line filter; it is not walking distance.
 
 ## Test
 
