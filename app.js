@@ -1,10 +1,12 @@
 import {
   LINES,
+  departurePreset,
   describeBearing,
   describeSunElevation,
   filterStationOptions,
   findClosestStation,
   getRecommendation,
+  shouldPreserveDestination,
   swapStations,
 } from "./shade.js";
 import { StationCombobox } from "./station-combobox.js";
@@ -13,8 +15,9 @@ const form = document.querySelector("#shade-form");
 const swapButton = document.querySelector("#swap-stations");
 const locateButton = document.querySelector("#locate-station");
 const locationStatus = document.querySelector("#location-status");
-const timeInput = document.querySelector("#time");
-const specificTimeLabel = document.querySelector("#specific-time-label");
+const dateInput = document.querySelector("#departure-date");
+const timeInput = document.querySelector("#departure-time");
+const specificTimePanel = document.querySelector("#specific-time-panel");
 const nowLabel = document.querySelector("#now-label");
 const routeLineLabel = document.querySelector("#route-line-label");
 const result = document.querySelector("#result");
@@ -44,9 +47,18 @@ function usesCurrentTime() {
   return form.elements["time-mode"].value === "now";
 }
 
-function toDatetimeLocalValue(date) {
+function toDateInputValue(date) {
   const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return offsetDate.toISOString().slice(0, 16);
+  return offsetDate.toISOString().slice(0, 10);
+}
+
+function toTimeInputValue(date) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function setSpecificDate(date) {
+  dateInput.value = toDateInputValue(date);
+  timeInput.value = toTimeInputValue(date);
 }
 
 function formatClockTime(date) {
@@ -54,7 +66,8 @@ function formatClockTime(date) {
 }
 
 function selectedDate() {
-  return usesCurrentTime() || !timeInput.value ? new Date() : new Date(timeInput.value);
+  if (usesCurrentTime() || !dateInput.value || !timeInput.value) return new Date();
+  return new Date(`${dateInput.value}T${timeInput.value}`);
 }
 
 function setLine(lineId, { clearRoute = false } = {}) {
@@ -65,7 +78,7 @@ function setLine(lineId, { clearRoute = false } = {}) {
   document.body.dataset.line = lineId;
   routeLineLabel.textContent = lineId === "all" ? "All supported lines" : LINES[lineId].name;
   assumption.textContent = lineId === "all"
-    ? "Searches five supported Tokyo corridors. Choosing an origin sets the line for the trip; transfers and cross-line through services are not modeled."
+    ? "Searches six supported Tokyo corridors. Choosing an origin sets the line for the trip; transfers and cross-line through services are not modeled."
     : LINES[lineId].assumption;
   if (clearRoute) {
     origin.clear();
@@ -137,6 +150,9 @@ function renderRecommendation() {
     const headingDegrees = Math.round(recommendation.heading);
     const sunAzimuthDegrees = Math.round(recommendation.sun.azimuth);
     const sunElevationDegrees = Math.round(recommendation.sun.elevation);
+    const routeDirection = start.lineId === "yamanote"
+      ? `${recommendation.direction.startsWith("clockwise") ? "Outer" : "Inner"} loop · ${headingDirection.short}`
+      : `${headingDirection.short} bound`;
 
     result.dataset.state = "ready";
     result.dataset.side = recommendation.side;
@@ -151,10 +167,10 @@ function renderRecommendation() {
       </div>
       <div class="confidence-row">
         <span class="confidence confidence-${recommendation.confidence}">${recommendation.confidence} confidence</span>
-        <span>${headingDirection.short} bound</span>
+        <span>${routeDirection}</span>
       </div>
       <p class="reason">${recommendation.reason}</p>
-      <details class="result-details">
+      <details class="result-details" open>
         <summary>Why this result</summary>
         <div class="orientation-layout">
           <div class="orientation-plot" style="--train-angle: ${headingDegrees}deg; --sun-angle: ${sunAzimuthDegrees}deg" role="img" aria-label="Top-down compass: train heading ${headingDirection.label}, sun toward ${sunDirection.label}">
@@ -180,23 +196,29 @@ function renderRecommendation() {
 
 function setTimeMode() {
   const isSpecific = !usesCurrentTime();
-  specificTimeLabel.hidden = !isSpecific;
+  specificTimePanel.hidden = !isSpecific;
+  dateInput.disabled = !isSpecific;
   timeInput.disabled = !isSpecific;
-  if (!isSpecific) timeInput.value = toDatetimeLocalValue(new Date());
   renderRecommendation();
+}
+
+function applyTimePreset(preset) {
+  form.elements["time-mode"].value = "specific";
+  setSpecificDate(departurePreset(new Date(), preset));
+  setTimeMode();
 }
 
 function swapRoute() {
   const start = origin.getSelection();
   const end = destination.getSelection();
-  if (!start || !end) {
-    renderRoutePrompt();
-    return;
-  }
-  const swapped = swapStations(start.name, end.name);
-  origin.setSelection({ ...end, name: swapped.startName });
-  destination.setSelection({ ...start, name: swapped.endName });
+  const swapped = swapStations(start?.name ?? null, end?.name ?? null);
+  origin.setSelection(end ? { ...end, name: swapped.startName } : null);
+  destination.setSelection(start ? { ...start, name: swapped.endName } : null);
   renderRecommendation();
+  if (!origin.getSelection() || !destination.getSelection()) {
+    const emptyCombobox = origin.getSelection() ? destination : origin;
+    window.requestAnimationFrame(() => emptyCombobox.focusAndOpen());
+  }
 }
 
 function formatDistance(distanceKm) {
@@ -224,15 +246,16 @@ function useClosestStation() {
   navigator.geolocation.getCurrentPosition(
     ({ coords }) => {
       const closest = findClosestStation(selectedLineId(), coords.latitude, coords.longitude);
+      const destinationSelection = destination.getSelection();
       setLine(closest.lineId);
       origin.setSelection(closest.station);
-      destination.clear();
+      if (!shouldPreserveDestination(destinationSelection, closest.lineId)) destination.clear();
       locationStatus.dataset.state = "success";
       locationStatus.textContent = `Closest on ${LINES[closest.lineId].name}: ${closest.station.name} (${closest.station.nameJa}) · about ${formatDistance(closest.distanceKm)} away.`;
       locateButton.disabled = false;
       delete locateButton.dataset.loading;
       renderRecommendation();
-      window.requestAnimationFrame(() => destination.focusAndOpen());
+      if (!destination.getSelection()) window.requestAnimationFrame(() => destination.focusAndOpen());
     },
     (error) => {
       locationStatus.dataset.state = "error";
@@ -245,7 +268,7 @@ function useClosestStation() {
 }
 
 setLine("all");
-timeInput.value = toDatetimeLocalValue(new Date());
+setSpecificDate(new Date());
 renderRecommendation();
 
 form.addEventListener("change", (event) => {
@@ -266,3 +289,6 @@ form.addEventListener("change", (event) => {
 form.addEventListener("submit", (event) => event.preventDefault());
 swapButton.addEventListener("click", swapRoute);
 locateButton.addEventListener("click", useClosestStation);
+document.querySelectorAll("[data-time-preset]").forEach((button) => {
+  button.addEventListener("click", () => applyTimePreset(button.dataset.timePreset));
+});

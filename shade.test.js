@@ -5,11 +5,14 @@ import {
   LINES,
   calculateBearing,
   calculateDistanceKm,
+  departurePreset,
   describeBearing,
   describeSunElevation,
   filterStationOptions,
   findClosestStation,
+  getRoutePath,
   recommendShadeSide,
+  shouldPreserveDestination,
   stationOptions,
   stationNamesForLine,
   swapStations,
@@ -22,7 +25,7 @@ test("distinguishes a touch tap from a scrolling gesture", () => {
 });
 
 test("includes all supported Tokyo line corridors", () => {
-  assert.deepEqual(Object.keys(LINES), ["keio", "inokashira", "shinjuku", "ginza", "chuo"]);
+  assert.deepEqual(Object.keys(LINES), ["keio", "inokashira", "shinjuku", "ginza", "chuo", "yamanote"]);
 
   const keioStations = stationNamesForLine("keio");
   assert.equal(keioStations[0], "Shinjuku");
@@ -44,6 +47,23 @@ test("includes all supported Tokyo line corridors", () => {
   assert.equal(LINES.shinjuku.code, "S");
   assert.equal(LINES.ginza.code, "G");
   assert.equal(LINES.chuo.code, "JC");
+  assert.equal(LINES.yamanote.code, "JY");
+  assert.equal(LINES.yamanote.circular, true);
+  assert.equal(stationNamesForLine("yamanote").length, 30);
+  assert.ok(stationNamesForLine("yamanote").includes("Takanawa Gateway"));
+});
+
+test("chooses the shorter direction around the Yamanote loop", () => {
+  const clockwise = getRoutePath("yamanote", "Tokyo", "Yurakucho");
+  assert.deepEqual(clockwise.stations.map(({ name }) => name), ["Tokyo", "Yurakucho"]);
+  assert.equal(clockwise.direction, "clockwise / outer loop");
+
+  const counterclockwise = getRoutePath("yamanote", "Tokyo", "Kanda");
+  assert.deepEqual(counterclockwise.stations.map(({ name }) => name), ["Tokyo", "Kanda"]);
+  assert.equal(counterclockwise.direction, "counterclockwise / inner loop");
+
+  const acrossSeam = getRoutePath("yamanote", "Shinagawa", "Osaki");
+  assert.deepEqual(acrossSeam.stations.map(({ name }) => name), ["Shinagawa", "Osaki"]);
 });
 
 test("calculates eastbound and westbound bearings from station coordinates", () => {
@@ -108,6 +128,24 @@ test("swaps origin and destination station names", () => {
     startName: "Shinjuku",
     endName: "Meidaimae",
   });
+  assert.deepEqual(swapStations("Shinjuku", null), { startName: null, endName: "Shinjuku" });
+  assert.deepEqual(swapStations(null, "Shibuya"), { startName: "Shibuya", endName: null });
+});
+
+test("preserves a destination when closest station resolves to the same line", () => {
+  assert.equal(shouldPreserveDestination({ lineId: "yamanote" }, "yamanote"), true);
+  assert.equal(shouldPreserveDestination({ lineId: "chuo" }, "yamanote"), false);
+  assert.equal(shouldPreserveDestination(null, "yamanote"), true);
+});
+
+test("builds useful future departure presets", () => {
+  const now = new Date(2026, 6, 21, 17, 45);
+  assert.equal(departurePreset(now, "plus-30").getTime(), new Date(2026, 6, 21, 18, 15).getTime());
+  assert.equal(departurePreset(now, "evening").getTime(), new Date(2026, 6, 21, 18, 0).getTime());
+  assert.equal(departurePreset(now, "tomorrow-morning").getTime(), new Date(2026, 6, 22, 8, 0).getTime());
+
+  const afterEvening = new Date(2026, 6, 21, 20, 0);
+  assert.equal(departurePreset(afterEvening, "evening").getTime(), new Date(2026, 6, 22, 18, 0).getTime());
 });
 
 test("builds station search options for all lines or one selected line", () => {
@@ -138,6 +176,7 @@ test("searches Japanese station names and keeps line identity", () => {
     ["shinjuku", "Shinjuku"],
     ["shinjuku", "Shinjuku-sanchome"],
     ["chuo", "Shinjuku"],
+    ["yamanote", "Shinjuku"],
   ]);
 
   const ginzaMatch = filterStationOptions("浅草", "ginza");

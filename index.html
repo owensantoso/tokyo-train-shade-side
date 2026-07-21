@@ -16,7 +16,7 @@
         <span>Shade Seat</span>
       </a>
       <span class="rail-stripes" aria-hidden="true"><i></i><i></i></span>
-      <span class="prototype-label">Tokyo beta · v0.3</span>
+      <span class="prototype-label">Tokyo beta · v0.4</span>
     </header>
 
     <main id="main-content">
@@ -43,6 +43,8 @@
               <label for="line-ginza"><span class="picker-code line-badge-ginza">G</span><span>Ginza</span></label>
               <input id="line-chuo" name="line" type="radio" value="chuo">
               <label for="line-chuo"><span class="picker-code line-badge-chuo">JC</span><span>Chuo Rapid</span></label>
+              <input id="line-yamanote" name="line" type="radio" value="yamanote">
+              <label for="line-yamanote"><span class="picker-code line-badge-yamanote">JY</span><span>Yamanote</span></label>
             </div>
           </fieldset>
 
@@ -100,12 +102,19 @@
                 <input id="time-now" name="time-mode" type="radio" value="now" checked>
                 <label id="now-label" for="time-now">Now</label>
                 <input id="time-specific" name="time-mode" type="radio" value="specific">
-                <label for="time-specific">Pick time</label>
+                <label for="time-specific">Later</label>
               </div>
-              <label id="specific-time-label" class="specific-time" for="time" hidden>
-                <span>Date and time</span>
-                <input id="time" type="datetime-local" disabled>
-              </label>
+              <div id="specific-time-panel" class="specific-time" hidden>
+                <div class="date-time-grid">
+                  <label><span>Date</span><input id="departure-date" type="date" disabled></label>
+                  <label><span>Time</span><input id="departure-time" type="time" step="300" disabled></label>
+                </div>
+                <div class="time-presets" aria-label="Quick departure times">
+                  <button type="button" data-time-preset="plus-30">+30 min</button>
+                  <button type="button" data-time-preset="evening">Next evening</button>
+                  <button type="button" data-time-preset="tomorrow-morning">Tomorrow 08:00</button>
+                </div>
+              </div>
             </div>
           </fieldset>
         </form>

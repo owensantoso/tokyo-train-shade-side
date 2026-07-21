@@ -164,6 +164,46 @@ export const LINES = {
       { name: "Takao", nameJa: "高尾", lat: 35.642, lon: 139.282 },
     ],
   },
+  yamanote: {
+    name: "JR Yamanote Line",
+    shortName: "Yamanote",
+    code: "JY",
+    circular: true,
+    assumption:
+      "Models the 30-station Yamanote loop and uses the shorter station arc. The shade result reflects the train's direction when leaving the origin; the train curves around the loop, so the sunnier side can change during longer trips.",
+    stations: [
+      { name: "Osaki", nameJa: "大崎", lat: 35.6197, lon: 139.7286 },
+      { name: "Gotanda", nameJa: "五反田", lat: 35.6264, lon: 139.7234 },
+      { name: "Meguro", nameJa: "目黒", lat: 35.6339, lon: 139.7157 },
+      { name: "Ebisu", nameJa: "恵比寿", lat: 35.6467, lon: 139.7101 },
+      { name: "Shibuya", nameJa: "渋谷", lat: 35.658, lon: 139.7016 },
+      { name: "Harajuku", nameJa: "原宿", lat: 35.6702, lon: 139.7027 },
+      { name: "Yoyogi", nameJa: "代々木", lat: 35.683, lon: 139.702 },
+      { name: "Shinjuku", nameJa: "新宿", lat: 35.6901, lon: 139.7006 },
+      { name: "Shin-Okubo", nameJa: "新大久保", lat: 35.7013, lon: 139.7 },
+      { name: "Takadanobaba", nameJa: "高田馬場", lat: 35.7126, lon: 139.7038 },
+      { name: "Mejiro", nameJa: "目白", lat: 35.7212, lon: 139.7066 },
+      { name: "Ikebukuro", nameJa: "池袋", lat: 35.7289, lon: 139.71 },
+      { name: "Otsuka", nameJa: "大塚", lat: 35.7316, lon: 139.7284 },
+      { name: "Sugamo", nameJa: "巣鴨", lat: 35.7334, lon: 139.7393 },
+      { name: "Komagome", nameJa: "駒込", lat: 35.7365, lon: 139.7469 },
+      { name: "Tabata", nameJa: "田端", lat: 35.7381, lon: 139.7608 },
+      { name: "Nishi-Nippori", nameJa: "西日暮里", lat: 35.7321, lon: 139.7668 },
+      { name: "Nippori", nameJa: "日暮里", lat: 35.7278, lon: 139.7709 },
+      { name: "Uguisudani", nameJa: "鶯谷", lat: 35.7215, lon: 139.778 },
+      { name: "Ueno", nameJa: "上野", lat: 35.7138, lon: 139.7773 },
+      { name: "Okachimachi", nameJa: "御徒町", lat: 35.7074, lon: 139.7747 },
+      { name: "Akihabara", nameJa: "秋葉原", lat: 35.6984, lon: 139.7731 },
+      { name: "Kanda", nameJa: "神田", lat: 35.6917, lon: 139.7709 },
+      { name: "Tokyo", nameJa: "東京", lat: 35.6812, lon: 139.7671 },
+      { name: "Yurakucho", nameJa: "有楽町", lat: 35.6751, lon: 139.7637 },
+      { name: "Shimbashi", nameJa: "新橋", lat: 35.6663, lon: 139.7586 },
+      { name: "Hamamatsucho", nameJa: "浜松町", lat: 35.6556, lon: 139.757 },
+      { name: "Tamachi", nameJa: "田町", lat: 35.6457, lon: 139.7476 },
+      { name: "Takanawa Gateway", nameJa: "高輪ゲートウェイ", lat: 35.6355, lon: 139.7407 },
+      { name: "Shinagawa", nameJa: "品川", lat: 35.6285, lon: 139.7388 },
+    ],
+  },
 };
 
 const toRadians = (degrees) => (degrees * Math.PI) / 180;
@@ -258,6 +298,60 @@ export function findClosestStation(lineId, lat, lon) {
 
 export function swapStations(startName, endName) {
   return { startName: endName, endName: startName };
+}
+
+export function shouldPreserveDestination(destinationSelection, lineId) {
+  return !destinationSelection || destinationSelection.lineId === lineId;
+}
+
+export function departurePreset(now, preset) {
+  const date = new Date(now);
+  if (preset === "plus-30") return new Date(date.getTime() + 30 * 60 * 1000);
+  if (preset === "tomorrow-morning") {
+    date.setDate(date.getDate() + 1);
+    date.setHours(8, 0, 0, 0);
+    return date;
+  }
+  if (preset === "evening") {
+    const evening = new Date(date);
+    evening.setHours(18, 0, 0, 0);
+    if (evening <= date) evening.setDate(evening.getDate() + 1);
+    return evening;
+  }
+  throw new Error(`Unknown departure preset: ${preset}`);
+}
+
+export function getRoutePath(lineId, startName, endName) {
+  const line = LINES[lineId];
+  const startIndex = line?.stations.findIndex(({ name }) => name === startName) ?? -1;
+  const endIndex = line?.stations.findIndex(({ name }) => name === endName) ?? -1;
+  if (!line || startIndex < 0 || endIndex < 0 || startIndex === endIndex) {
+    throw new Error("Choose two different stations on the same line.");
+  }
+
+  if (!line.circular) {
+    const step = endIndex > startIndex ? 1 : -1;
+    const stations = [];
+    for (let index = startIndex; index !== endIndex + step; index += step) stations.push(line.stations[index]);
+    return {
+      stations,
+      direction: step > 0 ? "outbound / away from central Tokyo" : "inbound / toward central Tokyo",
+    };
+  }
+
+  const count = line.stations.length;
+  const clockwiseSteps = (endIndex - startIndex + count) % count;
+  const counterclockwiseSteps = (startIndex - endIndex + count) % count;
+  const step = clockwiseSteps <= counterclockwiseSteps ? 1 : -1;
+  const steps = Math.min(clockwiseSteps, counterclockwiseSteps);
+  const stations = Array.from({ length: steps + 1 }, (_, offset) => {
+    const index = (startIndex + step * offset + count) % count;
+    return line.stations[index];
+  });
+  return {
+    stations,
+    direction: step > 0 ? "clockwise / outer loop" : "counterclockwise / inner loop",
+  };
 }
 
 const COMPASS_POINTS = [
@@ -382,9 +476,8 @@ export function getRecommendation({ lineId, startName, endName, date }) {
   }
 
   const line = LINES[lineId];
-  const startIndex = line.stations.indexOf(start);
-  const endIndex = line.stations.indexOf(end);
-  const heading = calculateBearing(start, end);
+  const route = getRoutePath(lineId, startName, endName);
+  const heading = calculateBearing(start, line.circular ? route.stations[1] : end);
   const sun = calculateSunPosition(date);
   const recommendation = recommendShadeSide({
     heading,
@@ -397,7 +490,7 @@ export function getRecommendation({ lineId, startName, endName, date }) {
     assumption: line.assumption,
     start,
     end,
-    direction: endIndex > startIndex ? "outbound / away from central Tokyo" : "inbound / toward central Tokyo",
+    direction: route.direction,
     heading,
     sun,
     ...recommendation,

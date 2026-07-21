@@ -6,7 +6,8 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 
 - Website only.
 - Supports Keio Line / Keio New Line, Inokashira Line, Toei Shinjuku Line,
-  Tokyo Metro Ginza Line, and the JR Chuo Rapid corridor from Tokyo to Takao.
+  Tokyo Metro Ginza Line, the JR Chuo Rapid corridor from Tokyo to Takao,
+  and the JR Yamanote Line.
 - User searches for an origin and destination, optionally filtering by line first.
 - Search accepts English or Japanese station names and shows both in suggestions.
 - All-lines search shows compact line-code badges and distinguishes shared stations.
@@ -23,6 +24,7 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - Each supported line is modeled as one ordered corridor using approximate station coordinates.
 - Keio and Toei Shinjuku through-services are shown as separate lines. Cross-operator journeys are not calculated.
 - Chuo Rapid stopping patterns vary by service. This prototype treats every listed Tokyo-Takao station as one continuous corridor and does not model train categories or timetables.
+- Yamanote trips use the shorter arc around the loop and the departure direction at the origin. The train curves, so the sunnier side may change during longer trips.
 - Line colors and codes are visual identifiers only; this is not an official railway app.
 
 ## Run locally
