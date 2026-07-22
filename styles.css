@@ -227,11 +227,27 @@ body[data-line="yamanote"] .line-schematic-panel { --line-accent: var(--yamanote
 .sun-vector { transform: rotate(var(--sun-angle)); }
 .sun-vector::before { width: 1px; background: #ff8b5c; }
 .sun-vector .vector-symbol { color: #ff8b5c; }
+.phone-vector { transform: rotate(var(--phone-angle)); }
+.phone-vector::before { width: 2px; background: #7ad7c7; }
+.phone-vector .vector-symbol { color: #7ad7c7; }
+.phone-vector[hidden], #phone-legend[hidden], #phone-direction-row[hidden] { display: none; }
+.orientation-side { display: grid; justify-items: center; gap: 10px; }
 .orientation-legend { display: flex; gap: 18px; color: #bdc6c2; font-family: var(--font-technical); font-size: .66rem; text-transform: uppercase; }
 .orientation-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend-icon { width: 17px; height: 17px; overflow: visible; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .train-key { stroke: var(--yellow); }
 .sun-key { stroke: #ff8b5c; }
+.phone-key { stroke: #7ad7c7; }
+.phone-compass-button { min-width: 176px; min-height: 44px; padding: 8px 12px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid #69736f; border-radius: 3px; background: transparent; color: #e5ebe8; font-family: var(--font-technical); font-size: .68rem; font-weight: 700; text-transform: uppercase; transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease; }
+.phone-compass-button:hover, .phone-compass-button:focus-visible { border-color: #7ad7c7; color: #7ad7c7; outline: 0; }
+.phone-compass-button:active { background: #234943; }
+.phone-compass-button[data-active="true"] { border-color: #7ad7c7; background: #173b35; color: #a7eee2; }
+.phone-compass-button:disabled { cursor: wait; opacity: .65; }
+.phone-compass-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.phone-compass-status { min-height: 16px; margin: 0; color: #9da8a3; font-size: .68rem; line-height: 1.35; text-align: center; }
+.phone-compass-status:empty { display: none; }
+.phone-compass-status[data-state="active"] { color: #7ad7c7; }
+.phone-compass-status[data-state="denied"], .phone-compass-status[data-state="unsupported"] { color: #ffc3b0; }
 .direction-data { display: grid; gap: 0; margin: 0; }
 .direction-data > div { padding: 12px 0; display: grid; grid-template-columns: 110px 1fr; gap: 12px; border-top: 1px solid #3e4743; }
 .direction-data dt { color: #9da8a3; font-family: var(--font-technical); font-size: .65rem; text-transform: uppercase; }
@@ -255,6 +271,7 @@ body[data-line="yamanote"] .line-schematic-panel { --line-accent: var(--yamanote
   .workspace { grid-template-columns: minmax(0, 1fr) minmax(360px, .94fr); gap: 34px; align-items: start; }
   .result { position: sticky; top: 20px; padding: 24px; }
   .orientation-layout { grid-template-columns: 160px 1fr; align-items: center; justify-items: start; }
+  .orientation-side { justify-items: start; }
   .orientation-legend { flex-direction: column; }
   .line-control { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .line-control label:last-child { grid-column: span 2; }

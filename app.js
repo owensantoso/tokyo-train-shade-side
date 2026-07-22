@@ -14,6 +14,7 @@ import {
   swapStations,
 } from "./shade.js";
 import { LineSchematic } from "./line-schematic.js";
+import { PhoneCompassController, signedHeadingDifference } from "./phone-compass.js";
 import { StationCombobox } from "./station-combobox.js";
 
 const form = document.querySelector("#shade-form");
@@ -27,6 +28,9 @@ const nowLabel = document.querySelector("#now-label");
 const routeLineLabel = document.querySelector("#route-line-label");
 const result = document.querySelector("#result");
 const assumption = document.querySelector("#assumption");
+let activeTrainHeading = null;
+let phoneCompassState = { status: "idle", heading: null };
+const phoneCompass = new PhoneCompassController({ onState: handlePhoneCompassState });
 
 const origin = new StationCombobox({
   input: document.querySelector("#origin-input"),
@@ -173,6 +177,7 @@ function sideContent(side) {
 }
 
 function renderNightResult({ recommendation, routeLineId, routeDirection, startCode, endCode, departureDate }) {
+  stopPhoneCompass();
   let relevantSunset = recommendation.solarEvents.sunset;
   if (recommendation.solarEvents.sunrise && departureDate < recommendation.solarEvents.sunrise) {
     relevantSunset = calculateSolarEvents(new Date(departureDate.getTime() - 86400000)).sunset;
@@ -203,7 +208,81 @@ function renderNightResult({ recommendation, routeLineId, routeDirection, startC
     </div>`;
 }
 
+function stopPhoneCompass() {
+  activeTrainHeading = null;
+  if (phoneCompass.listening) phoneCompass.stop();
+}
+
+function handlePhoneCompassState(state) {
+  phoneCompassState = state;
+  renderPhoneCompassState();
+}
+
+function phoneAlignmentText(trainHeading, phoneHeading) {
+  const difference = signedHeadingDifference(trainHeading, phoneHeading);
+  const absoluteDifference = Math.round(Math.abs(difference));
+  if (absoluteDifference <= 5) return "Aligned with expected train direction";
+  return `${absoluteDifference}° ${difference > 0 ? "right" : "left"} of expected train direction`;
+}
+
+function renderPhoneCompassState() {
+  const button = document.querySelector("#phone-compass-button");
+  if (!button) return;
+  const buttonLabel = button.querySelector("span");
+  const status = document.querySelector("#phone-compass-status");
+  const vector = document.querySelector("#phone-vector");
+  const legend = document.querySelector("#phone-legend");
+  const row = document.querySelector("#phone-direction-row");
+  const plot = document.querySelector(".orientation-plot");
+  const isRunning = ["waiting", "active"].includes(phoneCompassState.status);
+  const hasHeading = phoneCompassState.status === "active" && Number.isFinite(phoneCompassState.heading);
+
+  button.disabled = phoneCompassState.status === "requesting" || phoneCompassState.status === "unsupported";
+  button.dataset.active = String(isRunning);
+  buttonLabel.textContent = phoneCompassState.status === "requesting"
+    ? "Requesting compass"
+    : isRunning ? "Stop phone compass" : phoneCompassState.status === "unsupported" ? "Compass unavailable" : "Use phone compass";
+
+  const statusMessages = {
+    idle: "",
+    requesting: "Requesting sensor permission...",
+    waiting: "Waiting for an absolute heading...",
+    active: "Live phone heading",
+    denied: "Compass permission was not granted.",
+    unsupported: "Phone compass is unavailable in this browser.",
+  };
+  status.textContent = statusMessages[phoneCompassState.status] ?? "Phone compass is unavailable.";
+  status.dataset.state = phoneCompassState.status;
+  vector.hidden = !hasHeading;
+  legend.hidden = !hasHeading;
+  row.hidden = !hasHeading;
+
+  if (!hasHeading || !Number.isFinite(activeTrainHeading)) {
+    if (plot) plot.setAttribute("aria-label", plot.dataset.baseLabel);
+    return;
+  }
+
+  const heading = phoneCompassState.heading;
+  const direction = describeBearing(heading);
+  const headingDegrees = Math.round(heading);
+  vector.style.setProperty("--phone-angle", `${heading}deg`);
+  document.querySelector("#phone-direction-label").innerHTML = `${direction.label} <span>${direction.short}</span>`;
+  document.querySelector("#phone-direction-detail").textContent = `${headingDegrees}° clockwise from north · ${phoneAlignmentText(activeTrainHeading, heading)}`;
+  plot.setAttribute("aria-label", `${plot.dataset.baseLabel}, phone toward ${direction.label}`);
+}
+
+function bindPhoneCompassControls() {
+  const button = document.querySelector("#phone-compass-button");
+  if (!button) return;
+  button.addEventListener("click", () => {
+    if (["waiting", "active"].includes(phoneCompassState.status)) phoneCompass.stop();
+    else phoneCompass.start();
+  });
+  renderPhoneCompassState();
+}
+
 function renderRoutePrompt() {
+  stopPhoneCompass();
   const start = origin.getSelection();
   const end = destination.getSelection();
   const next = start ? "Choose a destination" : "Start with your origin";
@@ -276,7 +355,7 @@ function renderRecommendation() {
       <details class="result-details" open>
         <summary>Why this result</summary>
         <div class="orientation-layout">
-          <div class="orientation-plot" style="--train-angle: ${headingDegrees}deg; --sun-angle: ${sunAzimuthDegrees}deg" role="img" aria-label="Top-down compass: train heading ${headingDirection.label}, sun toward ${sunDirection.label}">
+          <div class="orientation-plot" style="--train-angle: ${headingDegrees}deg; --sun-angle: ${sunAzimuthDegrees}deg" role="img" data-base-label="Top-down compass: train heading ${headingDirection.label}, sun toward ${sunDirection.label}" aria-label="Top-down compass: train heading ${headingDirection.label}, sun toward ${sunDirection.label}">
             <span class="compass-label compass-n">N</span><span class="compass-label compass-e">E</span><span class="compass-label compass-s">S</span><span class="compass-label compass-w">W</span>
             <span class="compass-vector train-vector" aria-hidden="true">
               <svg class="vector-symbol" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="15" rx="3"></rect><path d="M8 7h8M8 12h.01M16 12h.01M8 18l-2 3M16 18l2 3"></path></svg>
@@ -284,21 +363,36 @@ function renderRecommendation() {
             <span class="compass-vector sun-vector" aria-hidden="true">
               <svg class="vector-symbol" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
             </span>
+            <span id="phone-vector" class="compass-vector phone-vector" aria-hidden="true" hidden>
+              <svg class="vector-symbol" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2"></rect><path d="M10 5h4M11 18.5h2"></path></svg>
+            </span>
             <span class="compass-center" aria-hidden="true"></span>
           </div>
-          <div class="orientation-legend">
-            <span><svg class="legend-icon train-key" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="15" rx="3"></rect><path d="M8 7h8M8 12h.01M16 12h.01M8 18l-2 3M16 18l2 3"></path></svg>Train</span>
-            <span><svg class="legend-icon sun-key" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>Sun</span>
+          <div class="orientation-side">
+            <div class="orientation-legend">
+              <span><svg class="legend-icon train-key" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="15" rx="3"></rect><path d="M8 7h8M8 12h.01M16 12h.01M8 18l-2 3M16 18l2 3"></path></svg>Train</span>
+              <span><svg class="legend-icon sun-key" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>Sun</span>
+              <span id="phone-legend" hidden><svg class="legend-icon phone-key" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"></rect><path d="M10 5h4M11 18.5h2"></path></svg>Phone</span>
+            </div>
+            <button id="phone-compass-button" class="phone-compass-button" type="button" data-active="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m15 9-2 5-5 2 2-5 5-2Z"></path></svg>
+              <span>Use phone compass</span>
+            </button>
+            <p id="phone-compass-status" class="phone-compass-status" aria-live="polite"></p>
           </div>
         </div>
         <dl class="direction-data">
           <div><dt>Train is heading</dt><dd><strong>${headingDirection.label} <span>${headingDirection.short}</span></strong><small>${headingDegrees}° clockwise from north</small></dd></div>
           <div><dt>Sun is toward</dt><dd><strong>${sunDirection.label} <span>${sunDirection.short}</span></strong><small>${sunAzimuthDegrees}° clockwise from north</small></dd></div>
           <div><dt>Sun height</dt><dd><strong>${sunHeight}</strong><small>${sunElevationDegrees}° above the horizon</small></dd></div>
+          <div id="phone-direction-row" hidden><dt>Phone points</dt><dd><strong id="phone-direction-label"></strong><small id="phone-direction-detail"></small></dd></div>
         </dl>
         <p class="bearing-note">Compass bearings start at north (0°) and move clockwise: east is 90°, south is 180°, and west is 270°. Sun height measures upward from the horizon.</p>
       </details>`;
+    activeTrainHeading = recommendation.heading;
+    bindPhoneCompassControls();
   } catch (error) {
+    stopPhoneCompass();
     result.dataset.state = "error";
     result.innerHTML = `<div class="result-heading"><span class="result-label">Route needed</span></div><div class="empty-answer"><span class="empty-marker" aria-hidden="true">!</span><div><h2>Choose two stations</h2><p>${error.message}</p></div></div>`;
   }

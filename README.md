@@ -21,6 +21,8 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - Detects night after the calculated Tokyo sunset and removes the sun-side recommendation and compass.
 - Sunrise and sunset are calculated locally for the selected date; no weather or astronomy API is called.
 - Explains train and sun bearings with 16-point compass labels while preserving raw degrees.
+- On supported phones, an optional permission-gated compass needle compares the phone's absolute heading with the expected train direction.
+- Phone compass readings stay in the browser, are not stored, and never override the calculated route bearing.
 - No maps, route planning, transfers, live train data, car layout data, or building shadows.
 - The station diagram is a coordinate-derived line schematic, not a geographic street map or route planner.
 
@@ -31,6 +33,7 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - Chuo Rapid stopping patterns vary by service. This prototype treats every listed Tokyo-Takao station as one continuous corridor and does not model train categories or timetables.
 - Yamanote trips use the shorter arc around the loop and the departure direction at the origin. The train curves, so the sunnier side may change during longer trips.
 - Line colors and codes are visual identifiers only; this is not an official railway app.
+- Phone headings can be distorted by the train body, nearby electronics, tunnels, and device calibration.
 
 ## Run locally
 
