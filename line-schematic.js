@@ -32,6 +32,34 @@ export function projectStationPoints(
   return raw.map(({ x, y }) => ({ x: x * scale + offsetX, y: y * scale + offsetY }));
 }
 
+export function projectSchematicPoints(
+  stations,
+  { width = VIEWBOX_WIDTH, height = VIEWBOX_HEIGHT, padding = VIEWBOX_PADDING } = {},
+) {
+  if (!stations.length) return [];
+  if (stations.length === 1) return [{ x: width / 2, y: height / 2 }];
+
+  const meanLatitude = stations.reduce((sum, station) => sum + station.lat, 0) / stations.length;
+  const longitudeScale = Math.cos((meanLatitude * Math.PI) / 180);
+  const raw = stations.map(({ lat, lon }) => ({ x: lon * longitudeScale, y: -lat }));
+  const first = raw[0];
+  const last = raw.at(-1);
+  const dx = last.x - first.x;
+  const dy = last.y - first.y;
+  const routeLength = Math.hypot(dx, dy);
+  const deviations = raw.map(({ x, y }) => (
+    routeLength ? (dx * (y - first.y) - dy * (x - first.x)) / routeLength : 0
+  ));
+  const maxDeviation = Math.max(...deviations.map(Math.abs));
+  const availableWidth = width - padding * 2;
+  const verticalAmplitude = (height - padding * 2) / 2;
+
+  return deviations.map((deviation, index) => ({
+    x: padding + (index / (stations.length - 1)) * availableWidth,
+    y: height / 2 + (maxDeviation ? (deviation / maxDeviation) * verticalAmplitude : 0),
+  }));
+}
+
 function svgElement(name, attributes = {}) {
   const element = document.createElementNS(SVG_NAMESPACE, name);
   Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
@@ -89,7 +117,7 @@ export class LineSchematic {
     const height = isCircular ? 240 : 176;
     const points = isCircular
       ? circularStationPoints(options.length, width, height)
-      : projectStationPoints(options, { width, height, padding: 28 });
+      : projectSchematicPoints(options, { width, height, padding: 28 });
     const pointByName = new Map(options.map((option, index) => [option.name, points[index]]));
     const svg = svgElement("svg", {
       viewBox: `0 0 ${width} ${height}`,

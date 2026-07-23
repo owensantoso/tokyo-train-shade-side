@@ -13,7 +13,7 @@ import {
   stationOptions,
   swapStations,
 } from "./shade.js";
-import { LineSchematic } from "./line-schematic.js";
+import { LineSchematic } from "./line-schematic.js?v=0.9.1";
 import { PhoneCompassController, signedHeadingDifference } from "./phone-compass.js";
 import { StationCombobox } from "./station-combobox.js";
 
