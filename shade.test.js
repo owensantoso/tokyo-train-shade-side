@@ -31,7 +31,7 @@ test("distinguishes a touch tap from a scrolling gesture", () => {
 });
 
 test("includes all supported Tokyo line corridors", () => {
-  assert.deepEqual(Object.keys(LINES), ["keio", "inokashira", "shinjuku", "ginza", "chuo", "yamanote"]);
+  assert.deepEqual(Object.keys(LINES), ["keio", "inokashira", "shinjuku", "ginza", "chuo", "yamanote", "odakyu"]);
 
   const keioStations = stationNamesForLine("keio");
   assert.equal(keioStations[0], "Shinjuku");
@@ -57,6 +57,10 @@ test("includes all supported Tokyo line corridors", () => {
   assert.equal(LINES.yamanote.circular, true);
   assert.equal(stationNamesForLine("yamanote").length, 30);
   assert.ok(stationNamesForLine("yamanote").includes("Takanawa Gateway"));
+  assert.equal(LINES.odakyu.code, "OH");
+  assert.equal(stationNamesForLine("odakyu").length, 47);
+  assert.deepEqual(stationNamesForLine("odakyu").slice(0, 3), ["Shinjuku", "Minami-Shinjuku", "Sangubashi"]);
+  assert.equal(stationNamesForLine("odakyu").at(-1), "Odawara");
 });
 
 test("chooses the shorter direction around the Yamanote loop", () => {
@@ -240,6 +244,9 @@ test("provides official station codes on every supported line", () => {
   assert.equal(stationCodeFor("yamanote", "Osaki"), "JY24");
   assert.equal(stationCodeFor("yamanote", "Takanawa Gateway"), "JY26");
   assert.equal(stationCodeFor("yamanote", "Yurakucho"), "JY30");
+  assert.equal(stationCodeFor("odakyu", "Shinjuku"), "OH01");
+  assert.equal(stationCodeFor("odakyu", "Shimokitazawa"), "OH07");
+  assert.equal(stationCodeFor("odakyu", "Odawara"), "OH47");
 });
 
 test("searches by station code", () => {
@@ -264,7 +271,7 @@ test("filters station suggestions with prefix matches before substring matches",
 test("searches Japanese station names and keeps line identity", () => {
   const shinjukuMatches = filterStationOptions("新宿", "all");
   assert.equal(shinjukuMatches[0].name, "Shinjuku");
-  assert.deepEqual(shinjukuMatches[0].lineIds, ["keio", "shinjuku", "chuo", "yamanote"]);
+  assert.deepEqual(shinjukuMatches[0].lineIds, ["keio", "shinjuku", "chuo", "yamanote", "odakyu"]);
   assert.equal(shinjukuMatches[1].name, "Shinjuku-sanchome");
   assert.deepEqual(shinjukuMatches[1].lineIds, ["shinjuku"]);
 
@@ -272,6 +279,21 @@ test("searches Japanese station names and keeps line identity", () => {
   assert.equal(ginzaMatch.length, 1);
   assert.equal(ginzaMatch[0].name, "Asakusa");
   assert.equal(ginzaMatch[0].lineCode, "G");
+
+  const odawaraMatch = filterStationOptions("小田原", "odakyu");
+  assert.equal(odawaraMatch.length, 1);
+  assert.equal(odawaraMatch[0].name, "Odawara");
+  assert.equal(odawaraMatch[0].lineCode, "OH");
+});
+
+test("treats Odakyu interchange stations as shared places", () => {
+  const options = stationOptions("all");
+  const shinjuku = options.find(({ name }) => name === "Shinjuku");
+  const shimokitazawa = options.find(({ name }) => name === "Shimokitazawa");
+
+  assert.deepEqual(shinjuku.lineIds, ["keio", "shinjuku", "chuo", "yamanote", "odakyu"]);
+  assert.deepEqual(shimokitazawa.lineIds, ["inokashira", "odakyu"]);
+  assert.equal(resolveRouteLine(shimokitazawa, options.find(({ name }) => name === "Odawara")), "odakyu");
 });
 
 test("finds the closest station across all lines and reports its line", () => {
