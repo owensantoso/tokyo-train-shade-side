@@ -13,7 +13,8 @@ import {
   stationOptions,
   swapStations,
 } from "./shade.js";
-import { LineSchematic } from "./line-schematic.js?v=0.9.1";
+import { shouldFocusOriginForTyping } from "./keyboard-shortcut.js?v=0.10";
+import { LineSchematic } from "./line-schematic.js?v=0.10";
 import { PhoneCompassController, signedHeadingDifference } from "./phone-compass.js";
 import { StationCombobox } from "./station-combobox.js";
 
@@ -110,7 +111,7 @@ function setLine(lineId, { clearRoute = false } = {}) {
   document.body.dataset.line = lineId;
   routeLineLabel.textContent = lineId === "all" ? "All supported lines" : LINES[lineId].name;
   assumption.textContent = lineId === "all"
-    ? "Searches six supported Tokyo corridors. Shared stations keep every available line until both endpoints identify a direct route; transfers are not modeled."
+    ? "Searches seven supported Tokyo corridors. Shared stations keep every available line until both endpoints identify a direct route; transfers are not modeled."
     : LINES[lineId].assumption;
   if (clearRoute) {
     origin.clear();
@@ -499,6 +500,11 @@ form.addEventListener("change", (event) => {
 form.addEventListener("submit", (event) => event.preventDefault());
 swapButton.addEventListener("click", swapRoute);
 locateButton.addEventListener("click", useClosestStation);
+document.addEventListener("keydown", (event) => {
+  if (!shouldFocusOriginForTyping(event, document.activeElement)) return;
+  origin.input.focus();
+  origin.input.select();
+});
 document.querySelectorAll("[data-time-preset]").forEach((button) => {
   button.addEventListener("click", () => applyTimePreset(button.dataset.timePreset));
 });

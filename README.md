@@ -9,6 +9,7 @@ Small static prototype for recommending the shadier side of a Tokyo train.
   Tokyo Metro Ginza Line, the JR Chuo Rapid corridor from Tokyo to Takao,
   the JR Yamanote Line, and the Odakyu Odawara Line from Shinjuku to Odawara.
 - User searches for an origin and destination, optionally filtering by line first.
+- Typing while no control is focused automatically starts a search in Origin.
 - Search accepts English or Japanese station names and shows both in suggestions.
 - Station numbers are shown throughout and can be searched directly, such as `JY17` or `G09`.
 - All-lines search groups shared stations into one place and shows every applicable line code.
@@ -24,7 +25,7 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - On supported phones, an optional permission-gated compass needle compares the phone's absolute heading with the expected train direction.
 - Phone compass readings stay in the browser, are not stored, and never override the calculated route bearing.
 - No maps, route planning, transfers, live train data, car layout data, or building shadows.
-- The station diagram is a coordinate-derived line schematic, not a geographic street map or route planner.
+- The station diagram is a north-up coordinate-derived mini-map without a street basemap or route planner.
 
 ## Route assumptions
 

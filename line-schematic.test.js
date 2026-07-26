@@ -26,15 +26,15 @@ test("keeps a flat line centered instead of dividing by zero", () => {
   assert.equal(points[1].y, 110);
 });
 
-test("lays a long diagonal route from the visible left edge to the right edge", () => {
+test("keeps a diagonal route north-up instead of forcing station order left-to-right", () => {
   const points = projectSchematicPoints([
     { lat: 35.69, lon: 139.70 },
     { lat: 35.61, lon: 139.53 },
     { lat: 35.44, lon: 139.36 },
     { lat: 35.26, lon: 139.16 },
-  ], { width: 1034, height: 176, padding: 28 });
+  ], { width: 640, height: 280, padding: 28 });
 
-  assert.equal(points[0].x, 28);
-  assert.equal(points.at(-1).x, 1006);
-  assert.equal(points.every(({ y }) => y >= 28 && y <= 148), true);
+  assert.ok(points[0].x > points.at(-1).x);
+  assert.ok(points[0].y < points.at(-1).y);
+  assert.equal(points.every(({ x, y }) => x >= 28 && x <= 612 && y >= 28 && y <= 252), true);
 });

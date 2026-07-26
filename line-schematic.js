@@ -36,28 +36,7 @@ export function projectSchematicPoints(
   stations,
   { width = VIEWBOX_WIDTH, height = VIEWBOX_HEIGHT, padding = VIEWBOX_PADDING } = {},
 ) {
-  if (!stations.length) return [];
-  if (stations.length === 1) return [{ x: width / 2, y: height / 2 }];
-
-  const meanLatitude = stations.reduce((sum, station) => sum + station.lat, 0) / stations.length;
-  const longitudeScale = Math.cos((meanLatitude * Math.PI) / 180);
-  const raw = stations.map(({ lat, lon }) => ({ x: lon * longitudeScale, y: -lat }));
-  const first = raw[0];
-  const last = raw.at(-1);
-  const dx = last.x - first.x;
-  const dy = last.y - first.y;
-  const routeLength = Math.hypot(dx, dy);
-  const deviations = raw.map(({ x, y }) => (
-    routeLength ? (dx * (y - first.y) - dy * (x - first.x)) / routeLength : 0
-  ));
-  const maxDeviation = Math.max(...deviations.map(Math.abs));
-  const availableWidth = width - padding * 2;
-  const verticalAmplitude = (height - padding * 2) / 2;
-
-  return deviations.map((deviation, index) => ({
-    x: padding + (index / (stations.length - 1)) * availableWidth,
-    y: height / 2 + (maxDeviation ? (deviation / maxDeviation) * verticalAmplitude : 0),
-  }));
+  return projectStationPoints(stations, { width, height, padding });
 }
 
 function svgElement(name, attributes = {}) {
@@ -69,21 +48,6 @@ function svgElement(name, attributes = {}) {
 function pathData(points, close = false) {
   if (!points.length) return "";
   return `${points.map(({ x, y }, index) => `${index ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ")}${close ? " Z" : ""}`;
-}
-
-function circularStationPoints(count, width, height) {
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const radiusX = width / 2 - 38;
-  const radiusY = height / 2 - 34;
-  return Array.from({ length: count }, (_, index) => {
-    const angle = Math.PI + (index / count) * Math.PI * 2;
-    return {
-      x: centerX + Math.cos(angle) * radiusX,
-      y: centerY + Math.sin(angle) * radiusY,
-      angle,
-    };
-  });
 }
 
 export class LineSchematic {
@@ -113,11 +77,9 @@ export class LineSchematic {
     const line = this.getLine(lineId);
     const options = this.getStationOptions(lineId);
     const isCircular = Boolean(line.circular);
-    const width = isCircular ? 360 : Math.max(360, options.length * 22);
-    const height = isCircular ? 240 : 176;
-    const points = isCircular
-      ? circularStationPoints(options.length, width, height)
-      : projectSchematicPoints(options, { width, height, padding: 28 });
+    const width = 640;
+    const height = 300;
+    const points = projectSchematicPoints(options, { width, height, padding: 34 });
     const pointByName = new Map(options.map((option, index) => [option.name, points[index]]));
     const svg = svgElement("svg", {
       viewBox: `0 0 ${width} ${height}`,
@@ -128,6 +90,19 @@ export class LineSchematic {
     });
     svg.classList.add("schematic-svg");
     svg.append(svgElement("path", { class: "schematic-track", d: pathData(points, isCircular) }));
+
+    const north = svgElement("g", {
+      class: "schematic-north",
+      transform: `translate(${width - 27} 30)`,
+      "aria-hidden": "true",
+    });
+    const northLabel = svgElement("text", { x: 0, y: -10, "text-anchor": "middle" });
+    northLabel.textContent = "N";
+    north.append(
+      northLabel,
+      svgElement("path", { d: "M0 10V-5M-4 0 0-6 4 0" }),
+    );
+    svg.append(north);
 
     if (origin && destination && origin.lineId === lineId && destination.lineId === lineId) {
       const route = this.getRoutePath(lineId, origin.name, destination.name);
@@ -170,8 +145,8 @@ export class LineSchematic {
       const circle = svgElement("circle", { class: "station-dot", r: isOrigin || isDestination ? 7 : 4.5 });
       const number = svgElement("text", {
         class: "schematic-number",
-        x: point.angle == null ? 0 : Math.cos(point.angle) * 13,
-        y: point.angle == null ? (index % 2 ? -9 : 14) : Math.sin(point.angle) * 13 + 2.5,
+        x: 0,
+        y: index % 2 ? -9 : 14,
         "text-anchor": "middle",
       });
       number.textContent = option.stationCode.slice(line.code.length);

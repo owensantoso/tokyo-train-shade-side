@@ -88,9 +88,9 @@ button:focus-visible, input:focus-visible, summary:focus-visible, .brand:focus-v
 .schematic-heading { min-height: 38px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--ink); }
 .schematic-heading h2 { margin: 0; font-family: var(--font-technical); font-size: .7rem; font-weight: 700; text-transform: uppercase; }
 .schematic-heading span { color: var(--muted); font-family: var(--font-technical); font-size: .64rem; font-weight: 700; text-align: right; text-transform: uppercase; }
-.line-schematic { min-height: 108px; overflow-x: auto; overflow-y: hidden; overscroll-behavior-inline: contain; touch-action: pan-x pan-y; scrollbar-color: var(--hairline) transparent; scrollbar-width: thin; }
+.line-schematic { min-height: 108px; overflow: hidden; touch-action: manipulation; }
 .line-schematic:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
-.schematic-svg { display: block; max-width: none; margin: 0 auto; }
+.schematic-svg { width: 100%; height: auto; display: block; margin: 0 auto; }
 .schematic-track, .schematic-route { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .schematic-track { stroke: #d7ddda; stroke-width: 7; }
 .schematic-route { stroke: var(--line-accent); stroke-width: 7; }
@@ -101,6 +101,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible, .brand:focus-v
 .schematic-station.is-origin .station-dot { fill: var(--yellow); stroke: var(--ink); stroke-width: 3; }
 .schematic-station.is-destination .station-dot { fill: var(--line-accent); stroke: var(--ink); stroke-width: 3; }
 .schematic-number { fill: var(--muted); font-family: var(--font-technical); font-size: 7px; font-weight: 700; pointer-events: none; }
+.schematic-north { fill: var(--muted); stroke: var(--muted); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.schematic-north text { stroke: none; font-family: var(--font-technical); font-size: 9px; font-weight: 800; }
 .schematic-loop-code { fill: var(--line-accent); font-family: var(--font-display); font-size: 30px; font-weight: 800; }
 .schematic-loop-name { fill: var(--muted); font-family: var(--font-technical); font-size: 8px; font-weight: 700; text-transform: uppercase; }
 .schematic-empty { min-height: 106px; margin: 0; padding: 20px; display: grid; place-items: center; color: var(--muted); font-size: .82rem; text-align: center; }
