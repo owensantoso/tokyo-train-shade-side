@@ -1,4 +1,5 @@
 import { LINES, stationCodeFor } from "./shade.js";
+import { samplePolyline } from "./map-overlay-geometry.js";
 
 const LINE_COLORS = {
   keio: "#d51c57",
@@ -14,6 +15,10 @@ const LINE_COLORS = {
 function lineCoordinates(line) {
   const coordinates = line.stations.map(({ lat, lon }) => [lat, lon]);
   return line.circular && coordinates.length ? [...coordinates, coordinates[0]] : coordinates;
+}
+
+export function routeSignature(lineId, origin, destination, resolvedLineId) {
+  return `${resolvedLineId ?? lineId}|${origin?.name ?? ""}|${destination?.name ?? ""}`;
 }
 
 export function nearestPointIndex(points, target, maxDistance) {
@@ -37,9 +42,11 @@ export class StationMap {
     this.getStationOptions = getStationOptions;
     this.onStationSelect = onStationSelect;
     this.getText = getText;
-    this.lastLineId = null;
+    this.lastRouteSignature = null;
+    this.routeStations = [];
     this.layers = new Map();
     this.routeSelectionLayer = null;
+    this.directionLayer = null;
     this.activeLineId = "all";
     this.hoveredMarker = null;
 
@@ -66,6 +73,7 @@ export class StationMap {
     this.map.on("click", (event) => this.selectNearestStation(event.containerPoint));
     this.map.on("mousemove", (event) => this.previewNearestStation(event.containerPoint));
     this.map.on("mouseout", () => this.clearStationPreview());
+    this.map.on("zoomend", () => this.renderDirectionArrows());
 
     Object.entries(LINES).forEach(([lineId, line]) => {
       const routeLayer = L.layerGroup();
@@ -105,13 +113,23 @@ export class StationMap {
       });
       this.layers.set(lineId, { routeLayer, stationLayer, markers });
     });
+    this.directionLayer = this.L.layerGroup().addTo(this.map);
 
     window.requestAnimationFrame(() => this.map.invalidateSize());
   }
 
-  render(lineId, origin, destination) {
+  render(lineId, origin, destination, resolvedLineId) {
     if (!this.map) return;
-    const lineChanged = lineId !== this.lastLineId;
+    const effectiveLineId = resolvedLineId ?? (lineId === "all" ? null : lineId);
+    const signature = routeSignature(lineId, origin, destination, resolvedLineId);
+    const routeChanged = signature !== this.lastRouteSignature;
+    const hasCompleteRoute = Boolean(
+      effectiveLineId
+      && this.layers.has(effectiveLineId)
+      && origin
+      && destination
+      && origin.name !== destination.name,
+    );
 
     this.layers.forEach(({ routeLayer, stationLayer, markers }, id) => {
       this.map.removeLayer(routeLayer);
@@ -130,39 +148,116 @@ export class StationMap {
       this.map.removeLayer(this.routeSelectionLayer);
       this.routeSelectionLayer = null;
     }
+    this.routeStations = [];
+    this.directionLayer.clearLayers();
 
     if (lineId === "all") {
       this.layers.forEach(({ routeLayer }) => routeLayer.addTo(this.map));
-      this.status.textContent = this.getText("chooseLineMap");
-      if (lineChanged) this.fitStations(Object.values(LINES).flatMap(({ stations }) => stations));
+      if (effectiveLineId) this.layers.get(effectiveLineId)?.stationLayer.addTo(this.map);
     } else {
       const { routeLayer, stationLayer } = this.layers.get(lineId);
       routeLayer.addTo(this.map);
       stationLayer.addTo(this.map);
-      if (origin && destination) {
-        const route = this.getRoutePath(lineId, origin.name, destination.name);
-        this.routeSelectionLayer = this.L.polyline(
-          route.stations.map(({ lat, lon }) => [lat, lon]),
-          { color: "#ffd43b", weight: 7, opacity: 1, lineJoin: "round" },
-        ).addTo(this.map);
+    }
+
+    if (hasCompleteRoute) {
+      const route = this.getRoutePath(effectiveLineId, origin.name, destination.name);
+      this.routeStations = route.stations;
+      this.routeSelectionLayer = this.L.polyline(
+        route.stations.map(({ lat, lon }) => [lat, lon]),
+        { color: "#ffd43b", weight: 7, opacity: 1, lineJoin: "round" },
+      ).addTo(this.map);
+      this.renderDirectionArrows();
+      this.status.textContent = `${stationCodeFor(effectiveLineId, origin.name)} → ${stationCodeFor(effectiveLineId, destination.name)}`;
+      this.container.setAttribute(
+        "aria-label",
+        this.getText("mapTravelDirection", { origin: origin.name, destination: destination.name }),
+      );
+    } else {
+      this.container.setAttribute("aria-label", this.getText("mapAria"));
+      this.status.textContent = lineId === "all"
+        ? this.getText("chooseLineMap")
+        : origin
+          ? this.getText("destinationUnset", { code: stationCodeFor(lineId, origin.name) })
+          : this.getText("clickOrigin");
+    }
+
+    if (routeChanged) {
+      if (this.routeStations.length) {
+        this.fitStations(this.routeStations, { padding: [32, 32], maxZoom: 15 });
+      } else if (origin) {
+        this.fitStations(this.originContextStations(lineId, origin, effectiveLineId), {
+          padding: [32, 32],
+          maxZoom: 15,
+        });
+      } else {
+        this.fitStations(
+          lineId === "all" ? Object.values(LINES).flatMap(({ stations }) => stations) : LINES[lineId].stations,
+        );
       }
-      this.status.textContent = origin
-        ? destination
-          ? `${stationCodeFor(lineId, origin.name)} → ${stationCodeFor(lineId, destination.name)}`
-          : this.getText("destinationUnset", { code: stationCodeFor(lineId, origin.name) })
-        : this.getText("clickOrigin");
-      if (lineChanged) this.fitStations(LINES[lineId].stations);
     }
 
     window.requestAnimationFrame(() => this.map.invalidateSize());
     this.activeLineId = lineId;
-    this.lastLineId = lineId;
+    this.lastRouteSignature = signature;
   }
 
-  fitStations(stations) {
+  originContextStations(lineId, origin, effectiveLineId) {
+    const candidateLineIds = effectiveLineId
+      ? [effectiveLineId]
+      : lineId === "all"
+        ? Object.keys(LINES).filter((id) => LINES[id].stations.some(({ name }) => name === origin.name))
+        : [lineId];
+    const stations = [];
+    const seen = new Set();
+
+    candidateLineIds.forEach((id) => {
+      const line = LINES[id];
+      const index = line?.stations.findIndex(({ name }) => name === origin.name) ?? -1;
+      if (index < 0) return;
+      const indexes = line.circular
+        ? [(index - 1 + line.stations.length) % line.stations.length, index, (index + 1) % line.stations.length]
+        : [index - 1, index, index + 1];
+      indexes.forEach((stationIndex) => {
+        const station = line.stations[stationIndex];
+        if (!station) return;
+        const key = `${station.lat}|${station.lon}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          stations.push(station);
+        }
+      });
+    });
+
+    return stations;
+  }
+
+  renderDirectionArrows() {
+    if (!this.map || !this.directionLayer) return;
+    this.directionLayer.clearLayers();
+    const points = this.routeStations.map(({ lat, lon }) => this.map.latLngToLayerPoint({ lat, lng: lon }));
+    const insetSamples = samplePolyline(points);
+    const samples = insetSamples.length ? insetSamples : samplePolyline(points, 70, 0);
+    samples.forEach((sample) => {
+      const marker = this.L.marker(this.map.layerPointToLatLng(sample), {
+        interactive: false,
+        keyboard: false,
+        icon: this.L.divIcon({
+          className: "route-direction-marker",
+          html: `<span class="route-direction-chevron" style="--route-angle:${sample.angle}deg" aria-hidden="true"></span>`,
+          iconSize: [18, 18],
+          iconAnchor: [9, 9],
+        }),
+      });
+      this.directionLayer.addLayer(marker);
+    });
+  }
+
+  fitStations(stations, options = { padding: [18, 18], maxZoom: 13 }) {
+    if (!stations.length) return;
     this.map.fitBounds(
       stations.map(({ lat, lon }) => [lat, lon]),
-      { padding: [18, 18], maxZoom: 13 },
+      options,
     );
   }
 
