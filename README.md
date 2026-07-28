@@ -14,7 +14,7 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - Search accepts English or Japanese station names and shows both in suggestions.
 - Station numbers are shown throughout and can be searched directly, such as `JY17` or `G09`.
 - All-lines search groups shared stations into one place and shows every applicable line code.
-- Selecting a line opens a vector station diagram; click one station for the origin and another for the destination.
+- Selecting a line zooms the embedded geographic station map to that corridor; click one station for the origin and another for the destination.
 - Arrow keys move through station suggestions, Enter selects, and Escape closes the list.
 - Choosing a shared origin keeps every directly reachable line available; the line resolves after the destination is selected.
 - Swap origin and destination with one button.
@@ -22,11 +22,13 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - Uses approximate station coordinates and approximate sun position.
 - Detects night after the calculated Tokyo sunset and removes the sun-side recommendation and compass.
 - Sunrise and sunset are calculated locally for the selected date; no weather or astronomy API is called.
+- Completed results include a live Tokyo-time slider that recalculates the shade recommendation while it moves.
+- Route, endpoints, and exact Tokyo departure time are stored in the URL and can be copied with the result Share button.
 - Explains train and sun bearings with 16-point compass labels while preserving raw degrees.
 - On supported phones, an optional permission-gated compass needle compares the phone's absolute heading with the expected train direction.
 - Phone compass readings stay in the browser, are not stored, and never override the calculated route bearing.
 - No route planning, transfers, live train data, car layout data, or building shadows.
-- The station diagram is a north-up coordinate-derived mini-map without a street basemap or route planner.
+- The station map uses OpenStreetMap tiles and approximate line coordinates; it is a selection surface, not a route planner.
 - `network-map-preview.html` is an isolated interactive basemap draft for evaluating a future map view.
 
 ## Route assumptions

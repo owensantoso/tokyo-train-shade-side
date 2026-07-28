@@ -14,9 +14,17 @@ import {
   swapStations,
 } from "./shade.js";
 import { shouldFocusOriginForTyping } from "./keyboard-shortcut.js?v=0.10";
-import { LineSchematic } from "./line-schematic.js?v=0.10";
 import { PhoneCompassController, signedHeadingDifference } from "./phone-compass.js";
+import { StationMap } from "./station-map.js";
 import { StationCombobox } from "./station-combobox.js";
+import {
+  clockToMinutes,
+  formatTokyoDateTime,
+  minutesToClock,
+  parseTokyoDateTime,
+  parseTripState,
+  serializeTripState,
+} from "./trip-state.js";
 
 const form = document.querySelector("#shade-form");
 const swapButton = document.querySelector("#swap-stations");
@@ -28,6 +36,12 @@ const specificTimePanel = document.querySelector("#specific-time-panel");
 const nowLabel = document.querySelector("#now-label");
 const routeLineLabel = document.querySelector("#route-line-label");
 const result = document.querySelector("#result");
+const resultContent = document.querySelector("#result-content");
+const resultTimeControl = document.querySelector("#result-time-control");
+const resultTimeSlider = document.querySelector("#result-time-slider");
+const resultTimeOutput = document.querySelector("#result-time-output");
+const shareButton = document.querySelector("#share-result");
+const shareStatus = document.querySelector("#share-status");
 const assumption = document.querySelector("#assumption");
 let activeTrainHeading = null;
 let phoneCompassState = { status: "idle", heading: null };
@@ -55,10 +69,9 @@ const destination = new StationCombobox({
   onClear: handleDestinationInput,
 });
 
-const lineSchematic = new LineSchematic({
+const stationMap = new StationMap({
   container: document.querySelector("#line-schematic"),
   status: document.querySelector("#schematic-status"),
-  getLine: (lineId) => LINES[lineId],
   getRoutePath,
   getStationOptions: stationOptions,
   onStationSelect: handleSchematicStationSelect,
@@ -73,12 +86,11 @@ function usesCurrentTime() {
 }
 
 function toDateInputValue(date) {
-  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return offsetDate.toISOString().slice(0, 10);
+  return formatTokyoDateTime(date).slice(0, 10);
 }
 
 function toTimeInputValue(date) {
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  return formatTokyoDateTime(date).slice(11);
 }
 
 function setSpecificDate(date) {
@@ -98,9 +110,64 @@ function formatTokyoClockTime(date) {
   }).format(date);
 }
 
+function formatResultTime(date) {
+  return `${new Intl.DateTimeFormat("en", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Tokyo",
+  }).format(date)} JST`;
+}
+
 function selectedDate() {
   if (usesCurrentTime() || !dateInput.value || !timeInput.value) return new Date();
-  return new Date(`${dateInput.value}T${timeInput.value}`);
+  return parseTokyoDateTime(`${dateInput.value}T${timeInput.value}`) ?? new Date();
+}
+
+function setSpecificTimeControls(enabled) {
+  specificTimePanel.hidden = !enabled;
+  dateInput.disabled = !enabled;
+  timeInput.disabled = !enabled;
+}
+
+function updateResultTimeControl(date, visible) {
+  resultTimeControl.hidden = !visible;
+  if (!visible) return;
+  const timestamp = formatTokyoDateTime(date);
+  resultTimeSlider.value = String(clockToMinutes(timestamp.slice(11)));
+  resultTimeOutput.textContent = formatResultTime(date);
+}
+
+function syncTripUrl(date = null) {
+  const query = serializeTripState({
+    lineId: selectedLineId(),
+    startName: origin.getSelection()?.name,
+    endName: destination.getSelection()?.name,
+    date,
+  });
+  const nextUrl = `${window.location.pathname}?${query}${window.location.hash}`;
+  if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== nextUrl) {
+    window.history.replaceState(null, "", nextUrl);
+  }
+}
+
+function hydrateTripState() {
+  const state = parseTripState(window.location.search, ["all", ...Object.keys(LINES)]);
+  setLine(state.lineId);
+  if (state.date) {
+    form.elements["time-mode"].value = "specific";
+    setSpecificDate(state.date);
+    setSpecificTimeControls(true);
+  }
+
+  const options = stationOptions(state.lineId);
+  const start = options.find(({ name }) => name === state.startName) ?? null;
+  const end = options.find(({ name }) => name === state.endName) ?? null;
+  if (start) origin.setSelection(start);
+  if (end && (!start || resolveRouteLine(start, end, state.lineId))) destination.setSelection(end);
+  syncStationScopes();
 }
 
 function setLine(lineId, { clearRoute = false } = {}) {
@@ -187,7 +254,7 @@ function renderNightResult({ recommendation, routeLineId, routeDirection, startC
 
   result.dataset.state = "night";
   delete result.dataset.side;
-  result.innerHTML = `
+  resultContent.innerHTML = `
     <div class="result-heading">
       <span class="result-label">Night journey</span>
       <span class="line-badge line-badge-${routeLineId}" aria-label="${LINES[routeLineId].name}" title="${LINES[routeLineId].name}">${LINES[routeLineId].code}</span>
@@ -295,7 +362,8 @@ function renderRoutePrompt() {
   destination.input.setAttribute("aria-invalid", String(Boolean(destination.input.value && !end)));
   result.dataset.state = "empty";
   delete result.dataset.side;
-  result.innerHTML = `
+  updateResultTimeControl(new Date(), false);
+  resultContent.innerHTML = `
     <div class="result-heading"><span class="result-label">Shade recommendation</span><span class="result-step">01 → 02</span></div>
     <div class="empty-answer"><span class="empty-marker" aria-hidden="true">+</span><div><h2>${next}</h2><p>${detail}</p></div></div>`;
 }
@@ -305,9 +373,10 @@ function renderRecommendation() {
   const start = origin.getSelection();
   const end = destination.getSelection();
   const routeLineId = resolveRouteLine(start, end, selectedLineId());
-  lineSchematic.render(selectedLineId(), start, end);
+  stationMap.render(selectedLineId(), start, end);
   if (!start || !end || !routeLineId) {
     renderRoutePrompt();
+    syncTripUrl();
     return;
   }
 
@@ -331,6 +400,8 @@ function renderRecommendation() {
       : `${headingDirection.short} bound`;
     const startCode = stationCodeFor(routeLineId, start.name);
     const endCode = stationCodeFor(routeLineId, end.name);
+    updateResultTimeControl(departureDate, true);
+    syncTripUrl(departureDate);
 
     if (recommendation.isNight) {
       renderNightResult({ recommendation, routeLineId, routeDirection, startCode, endCode, departureDate });
@@ -339,7 +410,7 @@ function renderRecommendation() {
 
     result.dataset.state = "ready";
     result.dataset.side = recommendation.side;
-    result.innerHTML = `
+    resultContent.innerHTML = `
       <div class="result-heading">
         <span class="result-label">Best shade</span>
         <span class="line-badge line-badge-${routeLineId}" aria-label="${LINES[routeLineId].name}" title="${LINES[routeLineId].name}">${LINES[routeLineId].code}</span>
@@ -395,15 +466,14 @@ function renderRecommendation() {
   } catch (error) {
     stopPhoneCompass();
     result.dataset.state = "error";
-    result.innerHTML = `<div class="result-heading"><span class="result-label">Route needed</span></div><div class="empty-answer"><span class="empty-marker" aria-hidden="true">!</span><div><h2>Choose two stations</h2><p>${error.message}</p></div></div>`;
+    updateResultTimeControl(new Date(), false);
+    resultContent.innerHTML = `<div class="result-heading"><span class="result-label">Route needed</span></div><div class="empty-answer"><span class="empty-marker" aria-hidden="true">!</span><div><h2>Choose two stations</h2><p>${error.message}</p></div></div>`;
   }
 }
 
 function setTimeMode() {
   const isSpecific = !usesCurrentTime();
-  specificTimePanel.hidden = !isSpecific;
-  dateInput.disabled = !isSpecific;
-  timeInput.disabled = !isSpecific;
+  setSpecificTimeControls(isSpecific);
   renderRecommendation();
 }
 
@@ -411,6 +481,40 @@ function applyTimePreset(preset) {
   form.elements["time-mode"].value = "specific";
   setSpecificDate(departurePreset(new Date(), preset));
   setTimeMode();
+}
+
+function applyResultSliderTime() {
+  const baseDate = formatTokyoDateTime(selectedDate()).slice(0, 10);
+  const date = parseTokyoDateTime(`${baseDate}T${minutesToClock(resultTimeSlider.value)}`);
+  if (!date) return;
+  form.elements["time-mode"].value = "specific";
+  setSpecificDate(date);
+  setSpecificTimeControls(true);
+  shareStatus.textContent = "";
+  renderRecommendation();
+}
+
+async function copyResultLink() {
+  syncTripUrl(selectedDate());
+  const link = window.location.href;
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(link);
+    copied = true;
+  } catch {
+    const temporary = document.createElement("textarea");
+    temporary.value = link;
+    temporary.setAttribute("readonly", "");
+    temporary.style.position = "fixed";
+    temporary.style.opacity = "0";
+    document.body.append(temporary);
+    temporary.select();
+    copied = document.execCommand("copy");
+    temporary.remove();
+  }
+  shareStatus.textContent = copied
+    ? "Link copied. It includes this route and departure time."
+    : "Could not copy automatically. Copy the current address from your browser.";
 }
 
 function swapRoute() {
@@ -479,8 +583,8 @@ function useClosestStation() {
   );
 }
 
-setLine("all");
 setSpecificDate(new Date());
+hydrateTripState();
 renderRecommendation();
 
 form.addEventListener("change", (event) => {
@@ -500,6 +604,8 @@ form.addEventListener("change", (event) => {
 form.addEventListener("submit", (event) => event.preventDefault());
 swapButton.addEventListener("click", swapRoute);
 locateButton.addEventListener("click", useClosestStation);
+resultTimeSlider.addEventListener("input", applyResultSliderTime);
+shareButton.addEventListener("click", copyResultLink);
 document.addEventListener("keydown", (event) => {
   if (!shouldFocusOriginForTyping(event, document.activeElement)) return;
   origin.input.focus();

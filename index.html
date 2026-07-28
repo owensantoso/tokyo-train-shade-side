@@ -7,7 +7,8 @@
     <meta name="description" content="Find the side of supported Tokyo trains likely to have less direct sun.">
     <title>Shade Seat · Tokyo train sun guide</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1">
-    <link rel="stylesheet" href="styles.css?v=0.11">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="styles.css?v=0.12">
   </head>
   <body data-line="all">
     <a class="skip-link" href="#main-content">Skip to trip controls</a>
@@ -17,7 +18,7 @@
         <span>Shade Seat</span>
       </a>
       <span class="rail-stripes" aria-hidden="true"><i></i><i></i></span>
-      <span class="prototype-label">Tokyo beta · v0.11</span>
+      <span class="prototype-label">Tokyo beta · v0.12</span>
     </header>
 
     <main id="main-content">
@@ -55,10 +56,10 @@
 
           <section class="line-schematic-panel" aria-labelledby="schematic-title">
             <div class="schematic-heading">
-              <h2 id="schematic-title">Station diagram</h2>
-              <span id="schematic-status">No line selected</span>
+              <h2 id="schematic-title">Station map</h2>
+              <span id="schematic-status">Choose a line</span>
             </div>
-            <div id="line-schematic" class="line-schematic" tabindex="0"></div>
+            <div id="line-schematic" class="line-schematic" aria-label="Interactive station map"></div>
           </section>
 
           <div class="route-board">
@@ -140,7 +141,27 @@
           </fieldset>
         </form>
 
-        <section id="result" class="result" aria-live="polite"></section>
+        <section id="result" class="result" aria-live="polite">
+          <div id="result-time-control" class="result-time-control" hidden>
+            <div class="result-time-heading">
+              <div>
+                <span class="result-time-label">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                  Departure
+                </span>
+                <output id="result-time-output" for="result-time-slider"></output>
+              </div>
+              <button id="share-result" class="share-result" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+                <span>Share</span>
+              </button>
+            </div>
+            <input id="result-time-slider" type="range" min="0" max="1435" step="5" value="720" aria-label="Departure time in Tokyo">
+            <div class="result-time-scale" aria-hidden="true"><span>00:00</span><span>12:00</span><span>23:55</span></div>
+            <p id="share-status" class="share-status" aria-live="polite"></p>
+          </div>
+          <div id="result-content"></div>
+        </section>
       </div>
 
       <details class="limitations">
@@ -152,6 +173,7 @@
       </details>
     </main>
 
-    <script type="module" src="app.js?v=0.11"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script type="module" src="app.js?v=0.12"></script>
   </body>
 </html>
