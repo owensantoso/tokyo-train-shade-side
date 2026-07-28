@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f2f4f3">
+    <meta name="description" content="Draft geographic view of supported Shade Seat train lines.">
+    <title>Network map draft · Shade Seat</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="network-map-preview.css?v=1">
+  </head>
+  <body>
+    <main>
+      <div id="network-map" aria-label="Interactive map of supported train lines"></div>
+      <section class="map-toolbar" aria-labelledby="map-title">
+        <div class="map-heading">
+          <div>
+            <p>Map concept · draft</p>
+            <h1 id="map-title">Supported network</h1>
+          </div>
+          <a href="./">Back to Shade Seat</a>
+        </div>
+        <div class="map-filters" aria-label="Filter map by line">
+          <button type="button" data-map-line="all" aria-pressed="true"><span class="all-swatch">ALL</span>All</button>
+          <button type="button" data-map-line="keio" aria-pressed="false"><i style="--swatch:#d51c57"></i>KO</button>
+          <button type="button" data-map-line="inokashira" aria-pressed="false"><i style="--swatch:#256ba6"></i>IN</button>
+          <button type="button" data-map-line="shinjuku" aria-pressed="false"><i style="--swatch:#6cbb5a"></i>S</button>
+          <button type="button" data-map-line="ginza" aria-pressed="false"><i style="--swatch:#f39700"></i>G</button>
+          <button type="button" data-map-line="chuo" aria-pressed="false"><i style="--swatch:#f15a24"></i>JC</button>
+          <button type="button" data-map-line="yamanote" aria-pressed="false"><i style="--swatch:#80c241"></i>JY</button>
+          <button type="button" data-map-line="odakyu" aria-pressed="false"><i style="--swatch:#1682c4"></i>OH</button>
+          <button type="button" data-map-line="denentoshi" aria-pressed="false"><i style="--swatch:#00a040"></i>DT</button>
+        </div>
+        <p id="map-status" class="map-status" aria-live="polite">Loading supported corridors</p>
+      </section>
+    </main>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script type="module" src="network-map.js?v=1"></script>
+  </body>
+</html>

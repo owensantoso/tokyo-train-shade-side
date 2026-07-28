@@ -23,15 +23,21 @@ import {
   stationNamesForLine,
   swapStations,
 } from "./shade.js";
-import { isTapGesture } from "./station-combobox.js";
+import { compactStationCodes, isTapGesture } from "./station-combobox.js";
 
 test("distinguishes a touch tap from a scrolling gesture", () => {
   assert.equal(isTapGesture({ x: 10, y: 20 }, { x: 14, y: 25 }), true);
   assert.equal(isTapGesture({ x: 10, y: 20 }, { x: 10, y: 32 }), false);
 });
 
+test("compacts long shared-station code lists without hiding the count", () => {
+  assert.equal(compactStationCodes(["KO01"]), "KO01");
+  assert.equal(compactStationCodes(["KO01", "S01"]), "KO01 · S01");
+  assert.equal(compactStationCodes(["KO01", "S01", "JC05", "JY17", "OH01"]), "5 lines");
+});
+
 test("includes all supported Tokyo line corridors", () => {
-  assert.deepEqual(Object.keys(LINES), ["keio", "inokashira", "shinjuku", "ginza", "chuo", "yamanote", "odakyu"]);
+  assert.deepEqual(Object.keys(LINES), ["keio", "inokashira", "shinjuku", "ginza", "chuo", "yamanote", "odakyu", "denentoshi"]);
 
   const keioStations = stationNamesForLine("keio");
   assert.equal(keioStations[0], "Shinjuku");
@@ -61,6 +67,10 @@ test("includes all supported Tokyo line corridors", () => {
   assert.equal(stationNamesForLine("odakyu").length, 47);
   assert.deepEqual(stationNamesForLine("odakyu").slice(0, 3), ["Shinjuku", "Minami-Shinjuku", "Sangubashi"]);
   assert.equal(stationNamesForLine("odakyu").at(-1), "Odawara");
+  assert.equal(LINES.denentoshi.code, "DT");
+  assert.equal(stationNamesForLine("denentoshi").length, 27);
+  assert.deepEqual(stationNamesForLine("denentoshi").slice(0, 3), ["Shibuya", "Ikejiri-Ohashi", "Sangen-jaya"]);
+  assert.equal(stationNamesForLine("denentoshi").at(-1), "Chuo-rinkan");
 });
 
 test("chooses the shorter direction around the Yamanote loop", () => {
@@ -207,8 +217,8 @@ test("builds station search options for all lines or one selected line", () => {
 test("groups a shared station as one place with every supported line", () => {
   const shibuya = stationOptions("all").find((option) => option.name === "Shibuya");
 
-  assert.deepEqual(shibuya.lineIds, ["inokashira", "ginza", "yamanote"]);
-  assert.deepEqual(shibuya.stationCodes, ["IN01", "G01", "JY20"]);
+  assert.deepEqual(shibuya.lineIds, ["inokashira", "ginza", "yamanote", "denentoshi"]);
+  assert.deepEqual(shibuya.stationCodes, ["IN01", "G01", "JY20", "DT01"]);
 });
 
 test("limits destinations to the union of lines serving a shared origin", () => {
@@ -247,6 +257,8 @@ test("provides official station codes on every supported line", () => {
   assert.equal(stationCodeFor("odakyu", "Shinjuku"), "OH01");
   assert.equal(stationCodeFor("odakyu", "Shimokitazawa"), "OH07");
   assert.equal(stationCodeFor("odakyu", "Odawara"), "OH47");
+  assert.equal(stationCodeFor("denentoshi", "Shibuya"), "DT01");
+  assert.equal(stationCodeFor("denentoshi", "Chuo-rinkan"), "DT27");
 });
 
 test("searches by station code", () => {
@@ -286,6 +298,12 @@ test("searches Japanese station names and keeps line identity", () => {
   assert.equal(odawaraMatch[0].lineCode, "OH");
 });
 
+test("searches Den-en-toshi stations by Japanese name", () => {
+  const [station] = filterStationOptions("中央林間", "denentoshi");
+  assert.equal(station.name, "Chuo-rinkan");
+  assert.equal(station.stationCode, "DT27");
+});
+
 test("treats Odakyu interchange stations as shared places", () => {
   const options = stationOptions("all");
   const shinjuku = options.find(({ name }) => name === "Shinjuku");
@@ -300,7 +318,7 @@ test("finds the closest station across all lines and reports its line", () => {
   const closest = findClosestStation("all", 35.658, 139.7016);
   assert.equal(closest.station.name, "Shibuya");
   assert.equal(closest.lineId, null);
-  assert.deepEqual(closest.station.lineIds, ["inokashira", "ginza", "yamanote"]);
+  assert.deepEqual(closest.station.lineIds, ["inokashira", "ginza", "yamanote", "denentoshi"]);
 });
 
 test("turns raw bearings into 16-point compass directions", () => {

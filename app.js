@@ -111,7 +111,7 @@ function setLine(lineId, { clearRoute = false } = {}) {
   document.body.dataset.line = lineId;
   routeLineLabel.textContent = lineId === "all" ? "All supported lines" : LINES[lineId].name;
   assumption.textContent = lineId === "all"
-    ? "Searches seven supported Tokyo corridors. Shared stations keep every available line until both endpoints identify a direct route; transfers are not modeled."
+    ? "Searches eight supported Tokyo corridors. Shared stations keep every available line until both endpoints identify a direct route; transfers are not modeled."
     : LINES[lineId].assumption;
   if (clearRoute) {
     origin.clear();

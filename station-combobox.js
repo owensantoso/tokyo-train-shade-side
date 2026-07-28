@@ -1,6 +1,11 @@
 const MAX_VISIBLE_OPTIONS = 9;
 const TAP_MOVEMENT_THRESHOLD = 8;
 
+export function compactStationCodes(codes = [], maxVisible = 2) {
+  if (codes.length <= maxVisible) return codes.join(" · ");
+  return `${codes.length} lines`;
+}
+
 export function isTapGesture(start, end) {
   return Math.hypot(end.x - start.x, end.y - start.y) <= TAP_MOVEMENT_THRESHOLD;
 }
@@ -85,8 +90,10 @@ export class StationCombobox {
     this.input.value = option?.name ?? "";
     this.input.setAttribute("aria-invalid", "false");
     if (this.codeElement) {
-      this.codeElement.textContent = option?.stationCode ?? "";
-      this.codeElement.title = option?.lineName ?? "";
+      const stationCodes = option?.stationCodes ?? (option?.stationCode ? [option.stationCode] : []);
+      this.codeElement.textContent = compactStationCodes(stationCodes);
+      this.codeElement.title = option ? `${stationCodes.join(" · ")} — ${option.lineName}` : "";
+      this.codeElement.setAttribute("aria-label", option ? `${stationCodes.join(", ")}. ${option.lineName}` : "");
       this.codeElement.hidden = !option;
     }
     this.updateClearButton();

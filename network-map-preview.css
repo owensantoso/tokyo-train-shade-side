@@ -1,0 +1,63 @@
+:root {
+  font-family: "Avenir Next", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", system-ui, sans-serif;
+  --ink: #141918;
+  --paper: #f2f4f3;
+  --surface: #ffffff;
+  --muted: #5a6560;
+  --yellow: #ffd43b;
+}
+
+* { box-sizing: border-box; }
+html, body, main, #network-map { width: 100%; height: 100%; margin: 0; }
+body { min-width: 320px; overflow: hidden; color: var(--ink); background: var(--paper); }
+button, a { font: inherit; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+button { cursor: pointer; }
+#network-map { background: #dce5e1; }
+
+.map-toolbar {
+  position: fixed;
+  z-index: 1000;
+  top: max(12px, env(safe-area-inset-top));
+  left: 12px;
+  width: min(calc(100% - 24px), 740px);
+  overflow: hidden;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .96);
+}
+
+.map-heading {
+  min-height: 64px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.map-heading p, .map-status { margin: 0; color: var(--muted); font-family: "SFMono-Regular", Consolas, monospace; font-size: .68rem; font-weight: 700; text-transform: uppercase; }
+.map-heading h1 { margin: 2px 0 0; font-family: "Bahnschrift SemiCondensed", "Arial Narrow", sans-serif; font-size: 1.42rem; line-height: 1; }
+.map-heading a { min-height: 44px; padding: 0 10px; display: inline-flex; align-items: center; border: 1px solid var(--ink); border-radius: 2px; color: var(--ink); font-size: .72rem; font-weight: 800; text-decoration: none; }
+.map-heading a:hover { background: var(--yellow); }
+
+.map-filters { padding: 8px; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: thin; }
+.map-filters button { min-width: 54px; min-height: 44px; padding: 6px 8px; display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 6px; border: 1px solid #9ba5a0; border-radius: 2px; background: white; color: var(--ink); font-family: "SFMono-Regular", Consolas, monospace; font-size: .72rem; font-weight: 800; }
+.map-filters button:hover { border-color: var(--ink); }
+.map-filters button[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: white; }
+.map-filters i { width: 11px; height: 11px; display: block; border-radius: 50%; background: var(--swatch); }
+.all-swatch { font-size: .52rem; }
+.map-status { min-height: 28px; padding: 7px 12px; border-top: 1px solid #c6ceca; }
+
+button:focus-visible, a:focus-visible { outline: 3px solid #0b62ce; outline-offset: 2px; }
+.leaflet-tooltip { border: 1px solid var(--ink); border-radius: 2px; box-shadow: none; font-size: .74rem; line-height: 1.35; }
+.leaflet-control-attribution { font-size: 10px; }
+
+@media (min-width: 780px) {
+  .map-toolbar { left: 20px; top: 20px; }
+  .map-filters { flex-wrap: wrap; overflow: visible; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; transition: none !important; }
+}

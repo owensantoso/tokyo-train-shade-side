@@ -6,7 +6,8 @@
     <meta name="theme-color" content="#f2f4f3">
     <meta name="description" content="Find the side of supported Tokyo trains likely to have less direct sun.">
     <title>Shade Seat · Tokyo train sun guide</title>
-    <link rel="stylesheet" href="styles.css?v=0.10">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1">
+    <link rel="stylesheet" href="styles.css?v=0.11">
   </head>
   <body data-line="all">
     <a class="skip-link" href="#main-content">Skip to trip controls</a>
@@ -16,7 +17,7 @@
         <span>Shade Seat</span>
       </a>
       <span class="rail-stripes" aria-hidden="true"><i></i><i></i></span>
-      <span class="prototype-label">Tokyo beta · v0.10</span>
+      <span class="prototype-label">Tokyo beta · v0.11</span>
     </header>
 
     <main id="main-content">
@@ -47,6 +48,8 @@
               <label for="line-yamanote"><span class="picker-code line-badge-yamanote">JY</span><span>Yamanote</span></label>
               <input id="line-odakyu" name="line" type="radio" value="odakyu">
               <label for="line-odakyu"><span class="picker-code line-badge-odakyu">OH</span><span>Odakyu</span></label>
+              <input id="line-denentoshi" name="line" type="radio" value="denentoshi">
+              <label for="line-denentoshi"><span class="picker-code line-badge-denentoshi">DT</span><span>Den-en-toshi</span></label>
             </div>
           </fieldset>
 
@@ -149,6 +152,6 @@
       </details>
     </main>
 
-    <script type="module" src="app.js?v=0.10"></script>
+    <script type="module" src="app.js?v=0.11"></script>
   </body>
 </html>

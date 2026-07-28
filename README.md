@@ -7,7 +7,8 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - Website only.
 - Supports Keio Line / Keio New Line, Inokashira Line, Toei Shinjuku Line,
   Tokyo Metro Ginza Line, the JR Chuo Rapid corridor from Tokyo to Takao,
-  the JR Yamanote Line, and the Odakyu Odawara Line from Shinjuku to Odawara.
+  the JR Yamanote Line, the Odakyu Odawara Line from Shinjuku to Odawara,
+  and the Tokyu Den-en-toshi Line from Shibuya to Chuo-rinkan.
 - User searches for an origin and destination, optionally filtering by line first.
 - Typing while no control is focused automatically starts a search in Origin.
 - Search accepts English or Japanese station names and shows both in suggestions.
@@ -24,8 +25,9 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - Explains train and sun bearings with 16-point compass labels while preserving raw degrees.
 - On supported phones, an optional permission-gated compass needle compares the phone's absolute heading with the expected train direction.
 - Phone compass readings stay in the browser, are not stored, and never override the calculated route bearing.
-- No maps, route planning, transfers, live train data, car layout data, or building shadows.
+- No route planning, transfers, live train data, car layout data, or building shadows.
 - The station diagram is a north-up coordinate-derived mini-map without a street basemap or route planner.
+- `network-map-preview.html` is an isolated interactive basemap draft for evaluating a future map view.
 
 ## Route assumptions
 
@@ -34,6 +36,7 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - Chuo Rapid stopping patterns vary by service. This prototype treats every listed Tokyo-Takao station as one continuous corridor and does not model train categories or timetables.
 - Yamanote trips use the shorter arc around the loop and the departure direction at the origin. The train curves, so the sunnier side may change during longer trips.
 - Odakyu Enoshima and Tama branches, through-services, and stopping patterns are not modeled.
+- Den-en-toshi through-services and stopping patterns are not modeled.
 - Line colors and codes are visual identifiers only; this is not an official railway app.
 - Phone headings can be distorted by the train body, nearby electronics, tunnels, and device calibration.
 
