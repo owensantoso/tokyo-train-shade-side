@@ -30,6 +30,46 @@ function createLeafletHarness() {
   const polylines = [];
   const markers = [];
   const stationMarkers = [];
+  const timers = [];
+
+  function createOverlayElement() {
+    const classes = new Set();
+    const properties = new Map();
+    const attributes = new Map();
+    const group = {
+      classList: {
+        add(...names) {
+          names.forEach((name) => classes.add(name));
+        },
+        remove(...names) {
+          names.forEach((name) => classes.delete(name));
+        },
+        contains(name) {
+          return classes.has(name);
+        },
+      },
+      style: {
+        setProperty(name, value) {
+          properties.set(name, value);
+        },
+        getPropertyValue(name) {
+          return properties.get(name) ?? "";
+        },
+      },
+      setAttribute(name, value) {
+        attributes.set(name, value);
+      },
+      getAttribute(name) {
+        return attributes.get(name);
+      },
+    };
+    return {
+      querySelector(selector) {
+        return selector === ".map-sun-group" ? group : null;
+      },
+      group,
+    };
+  }
 
   const L = {
     map() {
@@ -101,8 +141,15 @@ function createLeafletHarness() {
         setStyle(style) {
           this.style = style;
         },
-        openTooltip() {},
-        closeTooltip() {},
+        bringToFront() {
+          this.broughtToFront = true;
+        },
+        openTooltip() {
+          this.tooltipOpen = true;
+        },
+        closeTooltip() {
+          this.tooltipOpen = false;
+        },
       });
       stationMarkers.push(marker);
       return marker;
@@ -111,13 +158,25 @@ function createLeafletHarness() {
       return options;
     },
     marker(latLng, options) {
-      const marker = createLayer("direction-marker", { latLng, options });
+      const element = createOverlayElement();
+      const marker = createLayer("direction-marker", {
+        latLng,
+        options,
+        element,
+        getElement() {
+          return this.element;
+        },
+        setLatLng(nextLatLng) {
+          this.latLng = nextLatLng;
+          return this;
+        },
+      });
       markers.push(marker);
       return marker;
     },
   };
 
-  return { L, maps, markers, polylines, stationMarkers };
+  return { L, maps, markers, polylines, stationMarkers, timers };
 }
 
 function createStationMap({
@@ -132,6 +191,14 @@ function createStationMap({
     L: harness.L,
     requestAnimationFrame(callback) {
       callback();
+    },
+    setTimeout(callback) {
+      const timer = { callback, cleared: false };
+      harness.timers.push(timer);
+      return timer;
+    },
+    clearTimeout(timer) {
+      if (timer) timer.cleared = true;
     },
   };
   const stationMap = new StationMap({
@@ -296,5 +363,130 @@ test("returns to network framing when a route is cleared", () => {
   assert.deepEqual(
     maps[0].fitBoundsCalls.at(-1).bounds,
     LINES.inokashira.stations.map(({ lat, lon }) => [lat, lon]),
+  );
+});
+
+test("reuses one sunlight marker and unwraps time updates across north without reframing", () => {
+  const { stationMap, maps, markers } = createStationMap({
+    getText: (key, replacements = {}) => key === "mapSunDescription"
+      ? `Sun direction ${replacements.degrees} degrees`
+      : key,
+  });
+  const routeStations = [
+    { name: "A", lat: 35.6, lon: 139.6 },
+    { name: "B", lat: 35.6, lon: 139.8 },
+  ];
+  const fitCount = maps[0].fitBoundsCalls.length;
+
+  stationMap.updateTripOverlay({
+    routeLineId: "inokashira",
+    routeStations,
+    sunAzimuth: 359,
+    isNight: false,
+  });
+  const marker = stationMap.tripOverlayMarker;
+  const group = marker.getElement().group;
+
+  assert.equal(markers.length, 1);
+  assert.equal(marker.options.interactive, false);
+  assert.equal(marker.options.keyboard, false);
+  assert.deepEqual(marker.latLng, { lat: 35.6, lng: 139.7 });
+  assert.match(marker.options.icon.html, /map-sun-icon/);
+  assert.match(marker.options.icon.html, /map-sun-ray-left/);
+  assert.match(marker.options.icon.html, /map-sun-ray-center/);
+  assert.match(marker.options.icon.html, /map-sun-ray-right/);
+  assert.equal(group.style.getPropertyValue("--sun-map-angle"), "359deg");
+  assert.equal(group.getAttribute("aria-label"), "Sun direction 359 degrees");
+
+  stationMap.updateTripOverlay({
+    routeLineId: "inokashira",
+    routeStations,
+    sunAzimuth: 1,
+    isNight: false,
+  });
+
+  assert.equal(stationMap.tripOverlayMarker, marker);
+  assert.equal(markers.length, 1);
+  assert.equal(group.style.getPropertyValue("--sun-map-angle"), "361deg");
+  assert.equal(maps[0].fitBoundsCalls.length, fitCount);
+});
+
+test("night removal timers cannot remove a restored daylight overlay", () => {
+  const { stationMap, maps, timers } = createStationMap();
+  const routeStations = [
+    { name: "A", lat: 35.6, lon: 139.6 },
+    { name: "B", lat: 35.7, lon: 139.8 },
+  ];
+  const daylight = {
+    routeLineId: "inokashira",
+    routeStations,
+    sunAzimuth: 245,
+    isNight: false,
+  };
+
+  stationMap.updateTripOverlay(daylight);
+  const marker = stationMap.tripOverlayMarker;
+  stationMap.updateTripOverlay({ ...daylight, isNight: true });
+  const staleTimer = timers.at(-1);
+  assert.equal(marker.getElement().group.classList.contains("is-night"), true);
+
+  stationMap.updateTripOverlay({ ...daylight, sunAzimuth: 246 });
+  staleTimer.callback();
+
+  assert.equal(stationMap.tripOverlayMarker, marker);
+  assert.equal(maps[0].layers.has(marker), true);
+  assert.equal(marker.getElement().group.classList.contains("is-night"), false);
+
+  stationMap.updateTripOverlay({ ...daylight, isNight: true });
+  timers.at(-1).callback();
+  assert.equal(stationMap.tripOverlayMarker, null);
+  assert.equal(maps[0].layers.has(marker), false);
+});
+
+test("clearTripOverlay removes the marker and invalidates pending night cleanup", () => {
+  const { stationMap, maps, timers } = createStationMap();
+  const options = {
+    routeLineId: "inokashira",
+    routeStations: [
+      { name: "A", lat: 35.6, lon: 139.6 },
+      { name: "B", lat: 35.7, lon: 139.8 },
+    ],
+    sunAzimuth: 180,
+    isNight: false,
+  };
+
+  stationMap.updateTripOverlay(options);
+  const marker = stationMap.tripOverlayMarker;
+  stationMap.updateTripOverlay({ ...options, isNight: true });
+  const staleTimer = timers.at(-1);
+  stationMap.clearTripOverlay();
+  staleTimer.callback();
+
+  assert.equal(stationMap.tripOverlayMarker, null);
+  assert.equal(maps[0].layers.has(marker), false);
+});
+
+test("highlights endpoints on the resolved route line and restores route marker styling", () => {
+  const { stationMap } = createStationMap();
+  stationMap.render("all", { name: "Shibuya" }, { name: "Kichijoji" }, "inokashira");
+  const resolvedOrigin = stationMap.layers.get("inokashira").markers.get("Shibuya").marker;
+  const sharedOrigin = stationMap.layers.get("ginza").markers.get("Shibuya").marker;
+
+  stationMap.highlightEndpoint("origin", true);
+
+  assert.equal(resolvedOrigin.radius, 10);
+  assert.equal(resolvedOrigin.style.weight, 4);
+  assert.equal(resolvedOrigin.broughtToFront, true);
+  assert.equal(resolvedOrigin.tooltipOpen, true);
+  assert.notEqual(sharedOrigin.radius, 10);
+
+  stationMap.highlightEndpoint("origin", false);
+
+  assert.equal(resolvedOrigin.radius, 7);
+  assert.equal(resolvedOrigin.style.weight, 3);
+  assert.equal(resolvedOrigin.tooltipOpen, false);
+  assert.deepEqual(
+    stationMap.routeStations.map(({ name }) => name),
+    getRoutePath("inokashira", "Shibuya", "Kichijoji").stations.map(({ name }) => name),
   );
 });

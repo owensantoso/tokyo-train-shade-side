@@ -168,6 +168,25 @@ function localizedStationName(station) {
   return currentLanguage === "ja" ? station.nameJa : station.name;
 }
 
+function resultEndpointMarkup(role, station, code) {
+  const stationName = localizedStationName(station);
+  return `<span class="result-station-link" tabindex="0" data-map-endpoint="${role}" aria-label="${t("mapEndpointAria", {
+    role: currentLanguage === "en" ? t(role).toLowerCase() : t(role),
+    station: stationName,
+    code,
+  })}">${stationName} <span class="route-code">${code}</span></span>`;
+}
+
+function bindResultMapEndpoints() {
+  resultContent.querySelectorAll("[data-map-endpoint]").forEach((endpoint) => {
+    const role = endpoint.dataset.mapEndpoint;
+    endpoint.addEventListener("mouseenter", () => stationMap.highlightEndpoint(role, true));
+    endpoint.addEventListener("mouseleave", () => stationMap.highlightEndpoint(role, false));
+    endpoint.addEventListener("focus", () => stationMap.highlightEndpoint(role, true));
+    endpoint.addEventListener("blur", () => stationMap.highlightEndpoint(role, false));
+  });
+}
+
 function toDateInputValue(date) {
   return formatTokyoDateTime(date).slice(0, 10);
 }
@@ -348,7 +367,7 @@ function renderNightResult({ recommendation, routeLineId, routeDirection, startC
       <span class="side-arrow night-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"></path></svg>
       </span>
-      <div><h2>${t("nightTitle")}</h2><p>${localizedStationName(recommendation.start)} <span class="route-code">${startCode}</span> → ${localizedStationName(recommendation.end)} <span class="route-code">${endCode}</span></p></div>
+      <div><h2>${t("nightTitle")}</h2><p>${resultEndpointMarkup("origin", recommendation.start, startCode)} → ${resultEndpointMarkup("destination", recommendation.end, endCode)}</p></div>
     </div>
     <div class="confidence-row night-meta">
       <span class="night-status">${t("belowHorizon")}</span>
@@ -359,6 +378,7 @@ function renderNightResult({ recommendation, routeLineId, routeDirection, startC
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18h12M4 14h16M12 3v7M8.5 6.5 12 10l3.5-3.5"></path></svg>
       <div><span>${t("previousSunset")}</span><strong>${sunsetText}</strong><small>${t("calculatedLocally")}</small></div>
     </div>`;
+  bindResultMapEndpoints();
 }
 
 function stopPhoneCompass() {
@@ -458,8 +478,11 @@ function renderRecommendation() {
   const start = origin.getSelection();
   const end = destination.getSelection();
   const routeLineId = resolveRouteLine(start, end, selectedLineId());
-  stationMap.render(selectedLineId(), start, end);
+  stationMap.highlightEndpoint("origin", false);
+  stationMap.highlightEndpoint("destination", false);
+  stationMap.render(selectedLineId(), start, end, routeLineId);
   if (!start || !end || !routeLineId) {
+    stationMap.clearTripOverlay();
     renderRoutePrompt();
     syncTripUrl();
     return;
@@ -467,11 +490,18 @@ function renderRecommendation() {
 
   try {
     const departureDate = selectedDate();
+    const route = getRoutePath(routeLineId, start.name, end.name);
     const recommendation = getRecommendation({
       lineId: routeLineId,
       startName: start.name,
       endName: end.name,
       date: departureDate,
+    });
+    stationMap.updateTripOverlay({
+      routeLineId,
+      routeStations: route.stations,
+      sunAzimuth: recommendation.sun.azimuth,
+      isNight: recommendation.isNight,
     });
     const side = sideContent(recommendation.side);
     const headingDirection = localizedDirection(describeBearing(recommendation.heading));
@@ -503,7 +533,7 @@ function renderRecommendation() {
       </div>
       <div class="answer">
         <span class="side-arrow" aria-hidden="true">${side.arrow}</span>
-        <div><h2>${side.label}</h2><p>${localizedStationName(recommendation.start)} <span class="route-code">${startCode}</span> → ${localizedStationName(recommendation.end)} <span class="route-code">${endCode}</span></p></div>
+        <div><h2>${side.label}</h2><p>${resultEndpointMarkup("origin", recommendation.start, startCode)} → ${resultEndpointMarkup("destination", recommendation.end, endCode)}</p></div>
       </div>
       <div class="confidence-row">
         <span class="confidence confidence-${recommendation.confidence}">${t("confidence", { level: t(recommendation.confidence) })}</span>
@@ -548,9 +578,11 @@ function renderRecommendation() {
         <p class="bearing-note">${t("bearingNote")}</p>
       </details>`;
     activeTrainHeading = recommendation.heading;
+    bindResultMapEndpoints();
     bindPhoneCompassControls();
   } catch (error) {
     stopPhoneCompass();
+    stationMap.clearTripOverlay();
     result.dataset.state = "error";
     updateResultTimeControl(new Date(), false);
     resultContent.innerHTML = `<div class="result-heading"><span class="result-label">${t("routeNeeded")}</span></div><div class="empty-answer"><span class="empty-marker" aria-hidden="true">!</span><div><h2>${t("chooseTwo")}</h2><p>${error.message}</p></div></div>`;

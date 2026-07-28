@@ -1,5 +1,5 @@
 import { LINES, stationCodeFor } from "./shade.js";
-import { samplePolyline } from "./map-overlay-geometry.js";
+import { normalizeBearing, samplePolyline, unwrapBearing } from "./map-overlay-geometry.js";
 
 const LINE_COLORS = {
   keio: "#d51c57",
@@ -15,6 +15,31 @@ const LINE_COLORS = {
 function lineCoordinates(line) {
   const coordinates = line.stations.map(({ lat, lon }) => [lat, lon]);
   return line.circular && coordinates.length ? [...coordinates, coordinates[0]] : coordinates;
+}
+
+function routeMidpoint(stations) {
+  if (!Array.isArray(stations) || stations.length < 2) return null;
+  const segments = [];
+  let totalLength = 0;
+
+  for (let index = 1; index < stations.length; index += 1) {
+    const start = stations[index - 1];
+    const end = stations[index];
+    if (![start?.lat, start?.lon, end?.lat, end?.lon].every(Number.isFinite)) return null;
+    const length = Math.hypot(end.lat - start.lat, end.lon - start.lon);
+    if (length === 0) continue;
+    segments.push({ start, end, length, routeStart: totalLength });
+    totalLength += length;
+  }
+
+  if (!segments.length) return null;
+  const target = totalLength / 2;
+  const segment = segments.find(({ routeStart, length }) => target <= routeStart + length) ?? segments.at(-1);
+  const progress = (target - segment.routeStart) / segment.length;
+  return {
+    lat: segment.start.lat + (segment.end.lat - segment.start.lat) * progress,
+    lng: segment.start.lon + (segment.end.lon - segment.start.lon) * progress,
+  };
 }
 
 export function routeSignature(lineId, origin, destination, resolvedLineId) {
@@ -56,6 +81,13 @@ export class StationMap {
     this.layers = new Map();
     this.routeSelectionLayer = null;
     this.directionLayer = null;
+    this.tripOverlayMarker = null;
+    this.tripOverlayRemovalTimer = null;
+    this.tripOverlayToken = 0;
+    this.sunMapAngle = null;
+    this.endpointLineId = null;
+    this.endpointNames = { origin: null, destination: null };
+    this.highlightedEndpoint = null;
     this.activeLineId = "all";
     this.hoveredMarker = null;
 
@@ -144,6 +176,7 @@ export class StationMap {
       this.map.removeLayer(routeLayer);
       this.map.removeLayer(stationLayer);
       markers.forEach(({ marker }, stationName) => {
+        marker.closeTooltip();
         const state = origin?.name === stationName ? "origin" : destination?.name === stationName ? "destination" : "";
         marker.setRadius(state ? 7 : 3);
         marker.setStyle({
@@ -159,6 +192,12 @@ export class StationMap {
     }
     this.routeStations = [];
     this.directionLayer.clearLayers();
+    this.highlightedEndpoint = null;
+    this.endpointLineId = hasCompleteRoute ? effectiveLineId : null;
+    this.endpointNames = {
+      origin: hasCompleteRoute ? origin.name : null,
+      destination: hasCompleteRoute ? destination.name : null,
+    };
 
     if (lineId === "all") {
       this.layers.forEach(({ routeLayer }) => routeLayer.addTo(this.map));
@@ -212,6 +251,130 @@ export class StationMap {
     window.requestAnimationFrame(() => this.map.invalidateSize());
     this.activeLineId = lineId;
     this.lastRouteSignature = signature;
+  }
+
+  updateTripOverlay({ routeLineId, routeStations, sunAzimuth, isNight }) {
+    if (!this.map) return;
+    this.tripOverlayToken += 1;
+    if (this.tripOverlayRemovalTimer) {
+      window.clearTimeout(this.tripOverlayRemovalTimer);
+      this.tripOverlayRemovalTimer = null;
+    }
+
+    if (isNight) {
+      const marker = this.tripOverlayMarker;
+      if (!marker) return;
+      marker.getElement()?.querySelector(".map-sun-group")?.classList.add("is-night");
+      const token = this.tripOverlayToken;
+      this.tripOverlayRemovalTimer = window.setTimeout(() => {
+        if (token !== this.tripOverlayToken || marker !== this.tripOverlayMarker) return;
+        this.map.removeLayer(marker);
+        this.tripOverlayMarker = null;
+        this.tripOverlayRemovalTimer = null;
+      }, 240);
+      return;
+    }
+
+    const midpoint = routeMidpoint(routeStations);
+    const normalizedAzimuth = normalizeBearing(sunAzimuth);
+    if (!this.layers.has(routeLineId) || !midpoint || normalizedAzimuth === null) {
+      this.clearTripOverlay();
+      return;
+    }
+
+    const angle = unwrapBearing(this.sunMapAngle, normalizedAzimuth);
+    this.sunMapAngle = angle;
+    let isNewMarker = false;
+
+    if (!this.tripOverlayMarker) {
+      this.tripOverlayMarker = this.L.marker(midpoint, {
+        interactive: false,
+        keyboard: false,
+        zIndexOffset: 600,
+        icon: this.L.divIcon({
+          className: "map-sun-overlay",
+          html: `
+            <span class="map-sun-group is-entering" role="img">
+              <span class="map-sun-icon" aria-hidden="true"></span>
+              <span class="map-sun-ray map-sun-ray-left" aria-hidden="true"></span>
+              <span class="map-sun-ray map-sun-ray-center" aria-hidden="true"></span>
+              <span class="map-sun-ray map-sun-ray-right" aria-hidden="true"></span>
+            </span>`,
+          iconSize: [260, 260],
+          iconAnchor: [130, 130],
+        }),
+      }).addTo(this.map);
+      isNewMarker = true;
+    } else {
+      this.tripOverlayMarker.setLatLng(midpoint);
+    }
+
+    const group = this.tripOverlayMarker.getElement()?.querySelector(".map-sun-group");
+    if (!group) return;
+    group.style.setProperty("--sun-map-angle", `${angle}deg`);
+    group.setAttribute(
+      "aria-label",
+      this.getText("mapSunDescription", { degrees: Math.round(normalizedAzimuth) }),
+    );
+    group.classList.remove("is-night");
+    if (isNewMarker) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          if (this.tripOverlayMarker?.getElement()?.querySelector(".map-sun-group") === group) {
+            group.classList.remove("is-entering");
+          }
+        });
+      });
+    } else {
+      group.classList.remove("is-entering");
+    }
+  }
+
+  clearTripOverlay() {
+    this.tripOverlayToken += 1;
+    if (this.tripOverlayRemovalTimer) {
+      window.clearTimeout(this.tripOverlayRemovalTimer);
+      this.tripOverlayRemovalTimer = null;
+    }
+    if (this.tripOverlayMarker && this.map) this.map.removeLayer(this.tripOverlayMarker);
+    this.tripOverlayMarker = null;
+    this.sunMapAngle = null;
+  }
+
+  highlightEndpoint(role, active) {
+    if (!["origin", "destination"].includes(role) || !this.endpointLineId) return;
+    const marker = this.layers.get(this.endpointLineId)?.markers.get(this.endpointNames[role])?.marker;
+    if (!marker) return;
+
+    if (active) {
+      if (this.highlightedEndpoint && this.highlightedEndpoint.marker !== marker) {
+        this.restoreEndpointMarker(this.highlightedEndpoint.role, this.highlightedEndpoint.marker);
+      }
+      marker.setRadius(10);
+      marker.setStyle({
+        color: "#141918",
+        weight: 4,
+        fillColor: role === "origin" ? "#ffd43b" : LINE_COLORS[this.endpointLineId],
+      });
+      marker.bringToFront();
+      marker.openTooltip();
+      this.highlightedEndpoint = { role, marker };
+      return;
+    }
+
+    if (this.highlightedEndpoint?.marker !== marker) return;
+    this.restoreEndpointMarker(role, marker);
+    this.highlightedEndpoint = null;
+  }
+
+  restoreEndpointMarker(role, marker) {
+    marker.setRadius(7);
+    marker.setStyle({
+      color: "#141918",
+      weight: 3,
+      fillColor: role === "origin" ? "#ffd43b" : LINE_COLORS[this.endpointLineId],
+    });
+    marker.closeTooltip();
   }
 
   originContextStations(lineId, origin, effectiveLineId) {

@@ -25,3 +25,22 @@ test("localizes the map travel direction description", () => {
     "進行方向：渋谷から吉祥寺",
   );
 });
+
+test("localizes result endpoint and sunlight map descriptions", () => {
+  assert.equal(
+    translate("en", "mapEndpointAria", { role: "origin", station: "Shibuya", code: "IN01" }),
+    "Highlight origin Shibuya (IN01) on the station map",
+  );
+  assert.equal(
+    translate("ja", "mapEndpointAria", { role: "乗車駅", station: "渋谷", code: "IN01" }),
+    "駅マップで乗車駅の渋谷（IN01）を強調表示",
+  );
+  assert.equal(
+    translate("en", "mapSunDescription", { degrees: 245 }),
+    "Sun direction 245 degrees clockwise from north",
+  );
+  assert.equal(
+    translate("ja", "mapSunDescription", { degrees: 245 }),
+    "太陽の方向：北から時計回りに245度",
+  );
+});
