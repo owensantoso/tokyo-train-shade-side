@@ -15,14 +15,17 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - Station numbers are shown throughout and can be searched directly, such as `JY17` or `G09`.
 - All-lines search groups shared stations into one place and shows every applicable line code.
 - Selecting a line zooms the embedded geographic station map to that corridor; click one station for the origin and another for the destination.
+- Selecting both endpoints automatically frames the chosen map segment and adds static chevrons showing the route direction.
 - Arrow keys move through station suggestions, Enter selects, and Escape closes the list.
 - Choosing a shared origin keeps every directly reachable line available; the line resolves after the destination is selected.
 - Swap origin and destination with one button.
 - Optionally choose the closest origin station using browser location, across all lines or within an explicit line filter.
 - Uses approximate station coordinates and approximate sun position.
+- Daylight results show three incoming sunlight rays on the map; they update smoothly with the departure slider and are removed at night.
 - Detects night after the calculated Tokyo sunset and removes the sun-side recommendation and compass.
 - Sunrise and sunset are calculated locally for the selected date; no weather or astronomy API is called.
 - Completed results include a live Tokyo-time slider that recalculates the shade recommendation while it moves.
+- Hovering or focusing an endpoint in the result highlights its station on the map.
 - Route, endpoints, and exact Tokyo departure time are stored in the URL and can be copied with the result Share button.
 - English and Japanese UI modes are available from the header. Shared links include the language; otherwise the last choice is remembered, with browser locale used on the first visit.
 - The five most recently completed routes are stored locally in the browser, deduplicated, and can be restored or cleared without an account or backend.
@@ -32,6 +35,8 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - Language preference and recent routes stay on the current browser/device and disappear if its site data is cleared; they are not synced between devices.
 - No route planning, transfers, live train data, car layout data, or building shadows.
 - The station map uses OpenStreetMap tiles and approximate line coordinates; it is a selection surface, not a route planner.
+- The sunlight rays show direction only; they do not model shadows, sunlight intensity, or weather.
+- Route chevrons are static direction markers and do not imply live train movement.
 - `network-map-preview.html` is an isolated interactive basemap draft for evaluating a future map view.
 
 ## Route assumptions
