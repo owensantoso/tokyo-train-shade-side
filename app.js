@@ -114,6 +114,7 @@ const stationMap = new StationMap({
   getStationOptions: stationOptions,
   onStationSelect: handleSchematicStationSelect,
   getText: t,
+  getStationLabel: stationLabel,
 });
 
 function selectedLineId() {

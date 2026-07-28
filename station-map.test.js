@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { translate } from "./locale.js";
 import { LINES, getRoutePath } from "./shade.js";
 import { nearestPointIndex, routeSignature, StationMap } from "./station-map.js";
 
@@ -119,7 +120,13 @@ function createLeafletHarness() {
   return { L, maps, markers, polylines, stationMarkers };
 }
 
-function createStationMap() {
+function createStationMap({
+  getStationLabel,
+  getText = (key, replacements = {}) => {
+    if (key !== "mapTravelDirection") return key;
+    return `Travel direction: ${replacements.origin} to ${replacements.destination}`;
+  },
+} = {}) {
   const harness = createLeafletHarness();
   globalThis.window = {
     L: harness.L,
@@ -133,10 +140,8 @@ function createStationMap() {
     getRoutePath,
     getStationOptions: (lineId) => LINES[lineId].stations,
     onStationSelect() {},
-    getText: (key, replacements = {}) => {
-      if (key !== "mapTravelDirection") return key;
-      return `Travel direction: ${replacements.origin} to ${replacements.destination}`;
-    },
+    getText,
+    getStationLabel,
   });
   return { stationMap, ...harness };
 }
@@ -204,6 +209,19 @@ test("renders ordered route chevrons and only reframes when the route signature 
   maps[0].fire("zoomend");
   assert.notEqual(stationMap.directionLayer.layers, beforeZoomLayers);
   assert.equal(maps[0].fitBoundsCalls.length, fitCount);
+});
+
+test("uses localized production station labels in Japanese route ARIA text", () => {
+  const { stationMap } = createStationMap({
+    getStationLabel: (station) => station.nameJa,
+    getText: (key, replacements) => translate("ja", key, replacements),
+  });
+  const origin = { name: "Shibuya", nameJa: "渋谷" };
+  const destination = { name: "Kichijoji", nameJa: "吉祥寺" };
+
+  stationMap.render("inokashira", origin, destination);
+
+  assert.equal(stationMap.container["aria-label"], "進行方向：渋谷から吉祥寺");
 });
 
 test("reverses chevrons for the reverse trip", () => {

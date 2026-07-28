@@ -35,13 +35,22 @@ export function nearestPointIndex(points, target, maxDistance) {
 }
 
 export class StationMap {
-  constructor({ container, status, getRoutePath, getStationOptions, onStationSelect, getText = (key) => key }) {
+  constructor({
+    container,
+    status,
+    getRoutePath,
+    getStationOptions,
+    onStationSelect,
+    getText = (key) => key,
+    getStationLabel = (station) => station?.name ?? "",
+  }) {
     this.container = container;
     this.status = status;
     this.getRoutePath = getRoutePath;
     this.getStationOptions = getStationOptions;
     this.onStationSelect = onStationSelect;
     this.getText = getText;
+    this.getStationLabel = getStationLabel;
     this.lastRouteSignature = null;
     this.routeStations = [];
     this.layers = new Map();
@@ -171,7 +180,10 @@ export class StationMap {
       this.status.textContent = `${stationCodeFor(effectiveLineId, origin.name)} → ${stationCodeFor(effectiveLineId, destination.name)}`;
       this.container.setAttribute(
         "aria-label",
-        this.getText("mapTravelDirection", { origin: origin.name, destination: destination.name }),
+        this.getText("mapTravelDirection", {
+          origin: this.getStationLabel(origin),
+          destination: this.getStationLabel(destination),
+        }),
       );
     } else {
       this.container.setAttribute("aria-label", this.getText("mapAria"));
