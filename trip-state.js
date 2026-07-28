@@ -41,8 +41,9 @@ export function parseTokyoDateTime(value) {
   return date;
 }
 
-export function serializeTripState({ lineId = "all", startName, endName, date } = {}) {
+export function serializeTripState({ language, lineId = "all", startName, endName, date } = {}) {
   const params = new URLSearchParams();
+  if (["en", "ja"].includes(language)) params.set("lang", language);
   params.set("line", lineId);
   if (startName) params.set("from", startName);
   if (endName) params.set("to", endName);
@@ -55,6 +56,7 @@ export function parseTripState(search, allowedLineIds) {
   const params = new URLSearchParams(search);
   const requestedLine = params.get("line");
   return {
+    language: ["en", "ja"].includes(params.get("lang")) ? params.get("lang") : null,
     lineId: allowedLineIds.includes(requestedLine) ? requestedLine : "all",
     startName: params.get("from") || null,
     endName: params.get("to") || null,

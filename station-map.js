@@ -30,12 +30,13 @@ export function nearestPointIndex(points, target, maxDistance) {
 }
 
 export class StationMap {
-  constructor({ container, status, getRoutePath, getStationOptions, onStationSelect }) {
+  constructor({ container, status, getRoutePath, getStationOptions, onStationSelect, getText = (key) => key }) {
     this.container = container;
     this.status = status;
     this.getRoutePath = getRoutePath;
     this.getStationOptions = getStationOptions;
     this.onStationSelect = onStationSelect;
+    this.getText = getText;
     this.lastLineId = null;
     this.layers = new Map();
     this.routeSelectionLayer = null;
@@ -44,8 +45,8 @@ export class StationMap {
 
     const L = window.L;
     if (!L) {
-      this.status.textContent = "Map unavailable";
-      this.container.innerHTML = '<p class="schematic-empty">The station map could not load.</p>';
+      this.status.textContent = this.getText("mapUnavailable");
+      this.container.innerHTML = `<p class="schematic-empty">${this.getText("mapLoadFailed")}</p>`;
       return;
     }
 
@@ -132,7 +133,7 @@ export class StationMap {
 
     if (lineId === "all") {
       this.layers.forEach(({ routeLayer }) => routeLayer.addTo(this.map));
-      this.status.textContent = "Choose a line to pick stations";
+      this.status.textContent = this.getText("chooseLineMap");
       if (lineChanged) this.fitStations(Object.values(LINES).flatMap(({ stations }) => stations));
     } else {
       const { routeLayer, stationLayer } = this.layers.get(lineId);
@@ -148,8 +149,8 @@ export class StationMap {
       this.status.textContent = origin
         ? destination
           ? `${stationCodeFor(lineId, origin.name)} → ${stationCodeFor(lineId, destination.name)}`
-          : `${stationCodeFor(lineId, origin.name)} → destination not set`
-        : "Click a station for the origin";
+          : this.getText("destinationUnset", { code: stationCodeFor(lineId, origin.name) })
+        : this.getText("clickOrigin");
       if (lineChanged) this.fitStations(LINES[lineId].stations);
     }
 

@@ -11,7 +11,7 @@ export function isTapGesture(start, end) {
 }
 
 export class StationCombobox {
-  constructor({ input, listbox, codeElement, clearButton, getOptions, onSelect, onInput, onClear }) {
+  constructor({ input, listbox, codeElement, clearButton, getOptions, onSelect, onInput, onClear, getText = (key) => key, getOptionLabel = (option) => option?.name ?? "" }) {
     this.input = input;
     this.listbox = listbox;
     this.codeElement = codeElement;
@@ -20,6 +20,8 @@ export class StationCombobox {
     this.onSelect = onSelect;
     this.onInput = onInput;
     this.onClear = onClear;
+    this.getText = getText;
+    this.getOptionLabel = getOptionLabel;
     this.lineId = "all";
     this.selection = null;
     this.options = [];
@@ -87,7 +89,7 @@ export class StationCombobox {
 
   setSelection(option) {
     this.selection = option;
-    this.input.value = option?.name ?? "";
+    this.input.value = this.getOptionLabel(option);
     this.input.setAttribute("aria-invalid", "false");
     if (this.codeElement) {
       const stationCodes = option?.stationCodes ?? (option?.stationCode ? [option.stationCode] : []);
@@ -175,7 +177,7 @@ export class StationCombobox {
     if (!this.options.length) {
       const empty = document.createElement("li");
       empty.className = "suggestion-empty";
-      empty.textContent = "No matching stations";
+      empty.textContent = this.getText("noMatches");
       this.listbox.append(empty);
       return;
     }

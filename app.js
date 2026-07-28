@@ -17,6 +17,8 @@ import { shouldFocusOriginForTyping } from "./keyboard-shortcut.js?v=0.10";
 import { PhoneCompassController, signedHeadingDifference } from "./phone-compass.js";
 import { StationMap } from "./station-map.js";
 import { StationCombobox } from "./station-combobox.js";
+import { LINE_NAMES, resolveLanguage, translate } from "./locale.js";
+import { addRecentRoute, parseRecentRoutes } from "./recent-routes.js";
 import {
   clockToMinutes,
   formatTokyoDateTime,
@@ -25,6 +27,35 @@ import {
   parseTripState,
   serializeTripState,
 } from "./trip-state.js";
+
+const LANGUAGE_KEY = "shade-seat.language";
+const RECENT_ROUTES_KEY = "shade-seat.recent-routes.v1";
+const queryLanguage = new URLSearchParams(window.location.search).get("lang");
+
+function readStorage(key) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(key, value) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // The app still works when storage is blocked.
+  }
+}
+
+let currentLanguage = resolveLanguage({
+  urlLanguage: queryLanguage,
+  savedLanguage: readStorage(LANGUAGE_KEY),
+  browserLanguages: navigator.languages ?? [navigator.language],
+});
+let recentRoutes = parseRecentRoutes(readStorage(RECENT_ROUTES_KEY));
+const t = (key, values) => translate(currentLanguage, key, values);
+const stationLabel = (option) => currentLanguage === "ja" ? option?.nameJa : option?.name;
 
 const form = document.querySelector("#shade-form");
 const swapButton = document.querySelector("#swap-stations");
@@ -43,6 +74,9 @@ const resultTimeOutput = document.querySelector("#result-time-output");
 const shareButton = document.querySelector("#share-result");
 const shareStatus = document.querySelector("#share-status");
 const assumption = document.querySelector("#assumption");
+const recentRoutesSection = document.querySelector("#recent-routes");
+const recentRouteList = document.querySelector("#recent-route-list");
+const clearRecentRoutesButton = document.querySelector("#clear-recent-routes");
 let activeTrainHeading = null;
 let phoneCompassState = { status: "idle", heading: null };
 const phoneCompass = new PhoneCompassController({ onState: handlePhoneCompassState });
@@ -56,6 +90,8 @@ const origin = new StationCombobox({
   onSelect: handleOriginSelect,
   onInput: handleOriginInput,
   onClear: handleOriginInput,
+  getText: t,
+  getOptionLabel: stationLabel,
 });
 
 const destination = new StationCombobox({
@@ -67,6 +103,8 @@ const destination = new StationCombobox({
   onSelect: handleDestinationSelect,
   onInput: handleDestinationInput,
   onClear: handleDestinationInput,
+  getText: t,
+  getOptionLabel: stationLabel,
 });
 
 const stationMap = new StationMap({
@@ -75,6 +113,7 @@ const stationMap = new StationMap({
   getRoutePath,
   getStationOptions: stationOptions,
   onStationSelect: handleSchematicStationSelect,
+  getText: t,
 });
 
 function selectedLineId() {
@@ -83,6 +122,49 @@ function selectedLineId() {
 
 function usesCurrentTime() {
   return form.elements["time-mode"].value === "now";
+}
+
+function applyStaticTranslations() {
+  document.documentElement.lang = currentLanguage;
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    element.textContent = t(element.dataset.i18n);
+  });
+  ["aria-label", "placeholder", "title"].forEach((attribute) => {
+    const dataName = `i18n${attribute.split("-").map((part) => part[0].toUpperCase() + part.slice(1)).join("")}`;
+    document.querySelectorAll(`[data-i18n-${attribute}]`).forEach((element) => {
+      element.setAttribute(attribute, t(element.dataset[dataName]));
+    });
+  });
+  document.querySelectorAll("[data-line-name]").forEach((element) => {
+    element.textContent = LINE_NAMES[currentLanguage][element.dataset.lineName];
+  });
+  document.querySelectorAll("[data-language]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.language === currentLanguage));
+  });
+}
+
+function localizedDirection(direction) {
+  if (currentLanguage === "en") return direction;
+  const names = {
+    N: "北", NNE: "北北東", NE: "北東", ENE: "東北東",
+    E: "東", ESE: "東南東", SE: "南東", SSE: "南南東",
+    S: "南", SSW: "南南西", SW: "南西", WSW: "西南西",
+    W: "西", WNW: "西北西", NW: "北西", NNW: "北北西",
+  };
+  return { ...direction, label: names[direction.short] ?? direction.label };
+}
+
+function localizedSunHeight(elevation) {
+  if (currentLanguage === "en") return describeSunElevation(elevation);
+  if (elevation < 0) return "地平線の下";
+  if (elevation < 10) return "地平線近く";
+  if (elevation < 30) return "低い";
+  if (elevation < 60) return "中程度";
+  return "空高く";
+}
+
+function localizedStationName(station) {
+  return currentLanguage === "ja" ? station.nameJa : station.name;
 }
 
 function toDateInputValue(date) {
@@ -99,11 +181,11 @@ function setSpecificDate(date) {
 }
 
 function formatClockTime(date) {
-  return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(date);
+  return new Intl.DateTimeFormat(currentLanguage === "ja" ? "ja-JP" : "en", { hour: "numeric", minute: "2-digit" }).format(date);
 }
 
 function formatTokyoClockTime(date) {
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat(currentLanguage === "ja" ? "ja-JP" : "en", {
     hour: "numeric",
     minute: "2-digit",
     timeZone: "Asia/Tokyo",
@@ -111,7 +193,7 @@ function formatTokyoClockTime(date) {
 }
 
 function formatResultTime(date) {
-  return `${new Intl.DateTimeFormat("en", {
+  return `${new Intl.DateTimeFormat(currentLanguage === "ja" ? "ja-JP" : "en", {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -142,6 +224,7 @@ function updateResultTimeControl(date, visible) {
 
 function syncTripUrl(date = null) {
   const query = serializeTripState({
+    language: currentLanguage,
     lineId: selectedLineId(),
     startName: origin.getSelection()?.name,
     endName: destination.getSelection()?.name,
@@ -176,10 +259,10 @@ function setLine(lineId, { clearRoute = false } = {}) {
   origin.setLine(lineId);
   destination.setLine(lineId);
   document.body.dataset.line = lineId;
-  routeLineLabel.textContent = lineId === "all" ? "All supported lines" : LINES[lineId].name;
+  routeLineLabel.textContent = lineId === "all" ? t("allSupported") : LINE_NAMES[currentLanguage][lineId];
   assumption.textContent = lineId === "all"
-    ? "Searches eight supported Tokyo corridors. Shared stations keep every available line until both endpoints identify a direct route; transfers are not modeled."
-    : LINES[lineId].assumption;
+    ? t("assumptionAll")
+    : t("assumptionLine", { line: LINE_NAMES[currentLanguage][lineId] });
   if (clearRoute) {
     origin.clear();
     destination.clear();
@@ -239,9 +322,9 @@ function handleSchematicStationSelect(option) {
 }
 
 function sideContent(side) {
-  if (side === "left") return { label: "Sit on the left", arrow: "←" };
-  if (side === "right") return { label: "Sit on the right", arrow: "→" };
-  return { label: "Either side is similar", arrow: "↔" };
+  if (side === "left") return { label: t("sideLeft"), arrow: "←" };
+  if (side === "right") return { label: t("sideRight"), arrow: "→" };
+  return { label: t("sideEither"), arrow: "↔" };
 }
 
 function renderNightResult({ recommendation, routeLineId, routeDirection, startCode, endCode, departureDate }) {
@@ -250,29 +333,30 @@ function renderNightResult({ recommendation, routeLineId, routeDirection, startC
   if (recommendation.solarEvents.sunrise && departureDate < recommendation.solarEvents.sunrise) {
     relevantSunset = calculateSolarEvents(new Date(departureDate.getTime() - 86400000)).sunset;
   }
-  const sunsetText = relevantSunset ? formatTokyoClockTime(relevantSunset) : "Unavailable";
+  const sunsetText = relevantSunset ? formatTokyoClockTime(relevantSunset) : t("unavailable");
+  const lineName = LINE_NAMES[currentLanguage][routeLineId];
 
   result.dataset.state = "night";
   delete result.dataset.side;
   resultContent.innerHTML = `
     <div class="result-heading">
-      <span class="result-label">Night journey</span>
-      <span class="line-badge line-badge-${routeLineId}" aria-label="${LINES[routeLineId].name}" title="${LINES[routeLineId].name}">${LINES[routeLineId].code}</span>
+      <span class="result-label">${t("nightJourney")}</span>
+      <span class="line-badge line-badge-${routeLineId}" aria-label="${lineName}" title="${lineName}">${LINES[routeLineId].code}</span>
     </div>
     <div class="answer night-answer">
       <span class="side-arrow night-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"></path></svg>
       </span>
-      <div><h2>It's night. No sun.</h2><p>${recommendation.start.name} <span class="route-code">${startCode}</span> → ${recommendation.end.name} <span class="route-code">${endCode}</span></p></div>
+      <div><h2>${t("nightTitle")}</h2><p>${localizedStationName(recommendation.start)} <span class="route-code">${startCode}</span> → ${localizedStationName(recommendation.end)} <span class="route-code">${endCode}</span></p></div>
     </div>
     <div class="confidence-row night-meta">
-      <span class="night-status">Sun below horizon</span>
+      <span class="night-status">${t("belowHorizon")}</span>
       <span>${routeDirection}</span>
     </div>
-    <p class="reason">There is no direct sunlight to avoid, so neither side has a shade advantage.</p>
+    <p class="reason">${t("nightReason")}</p>
     <div class="night-fact">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18h12M4 14h16M12 3v7M8.5 6.5 12 10l3.5-3.5"></path></svg>
-      <div><span>Previous sunset</span><strong>${sunsetText}</strong><small>Calculated locally for Tokyo for this date.</small></div>
+      <div><span>${t("previousSunset")}</span><strong>${sunsetText}</strong><small>${t("calculatedLocally")}</small></div>
     </div>`;
 }
 
@@ -289,8 +373,8 @@ function handlePhoneCompassState(state) {
 function phoneAlignmentText(trainHeading, phoneHeading) {
   const difference = signedHeadingDifference(trainHeading, phoneHeading);
   const absoluteDifference = Math.round(Math.abs(difference));
-  if (absoluteDifference <= 5) return "Aligned with expected train direction";
-  return `${absoluteDifference}° ${difference > 0 ? "right" : "left"} of expected train direction`;
+  if (absoluteDifference <= 5) return t("alignExact");
+  return t("alignOffset", { degrees: absoluteDifference, side: t(difference > 0 ? "right" : "left") });
 }
 
 function renderPhoneCompassState() {
@@ -308,18 +392,18 @@ function renderPhoneCompassState() {
   button.disabled = phoneCompassState.status === "requesting" || phoneCompassState.status === "unsupported";
   button.dataset.active = String(isRunning);
   buttonLabel.textContent = phoneCompassState.status === "requesting"
-    ? "Requesting compass"
-    : isRunning ? "Stop phone compass" : phoneCompassState.status === "unsupported" ? "Compass unavailable" : "Use phone compass";
+    ? t("requestCompass")
+    : isRunning ? t("stopCompass") : phoneCompassState.status === "unsupported" ? t("compassUnavailable") : t("useCompass");
 
   const statusMessages = {
     idle: "",
-    requesting: "Requesting sensor permission...",
-    waiting: "Waiting for an absolute heading...",
-    active: "Live phone heading",
-    denied: "Compass permission was not granted.",
-    unsupported: "Phone compass is unavailable in this browser.",
+    requesting: t("sensorRequest"),
+    waiting: t("sensorWaiting"),
+    active: t("sensorActive"),
+    denied: t("sensorDenied"),
+    unsupported: t("sensorUnsupported"),
   };
-  status.textContent = statusMessages[phoneCompassState.status] ?? "Phone compass is unavailable.";
+  status.textContent = statusMessages[phoneCompassState.status] ?? t("sensorUnsupported");
   status.dataset.state = phoneCompassState.status;
   vector.hidden = !hasHeading;
   legend.hidden = !hasHeading;
@@ -331,12 +415,12 @@ function renderPhoneCompassState() {
   }
 
   const heading = phoneCompassState.heading;
-  const direction = describeBearing(heading);
+  const direction = localizedDirection(describeBearing(heading));
   const headingDegrees = Math.round(heading);
   vector.style.setProperty("--phone-angle", `${heading}deg`);
   document.querySelector("#phone-direction-label").innerHTML = `${direction.label} <span>${direction.short}</span>`;
-  document.querySelector("#phone-direction-detail").textContent = `${headingDegrees}° clockwise from north · ${phoneAlignmentText(activeTrainHeading, heading)}`;
-  plot.setAttribute("aria-label", `${plot.dataset.baseLabel}, phone toward ${direction.label}`);
+  document.querySelector("#phone-direction-detail").textContent = `${t("clockwise", { degrees: headingDegrees })} · ${phoneAlignmentText(activeTrainHeading, heading)}`;
+  plot.setAttribute("aria-label", `${plot.dataset.baseLabel}, ${t("phonePoints")}: ${direction.label}`);
 }
 
 function bindPhoneCompassControls() {
@@ -353,10 +437,10 @@ function renderRoutePrompt() {
   stopPhoneCompass();
   const start = origin.getSelection();
   const end = destination.getSelection();
-  const next = start ? "Choose a destination" : "Start with your origin";
+  const next = start ? t("chooseDestination") : t("startOrigin");
   const detail = start
-    ? "Type a station or pick one from the open suggestions."
-    : "Search all supported lines, or use a line symbol above to narrow the station list.";
+    ? t("promptDestination")
+    : t("promptOrigin");
 
   origin.input.setAttribute("aria-invalid", String(Boolean(origin.input.value && !start)));
   destination.input.setAttribute("aria-invalid", String(Boolean(destination.input.value && !end)));
@@ -364,12 +448,12 @@ function renderRoutePrompt() {
   delete result.dataset.side;
   updateResultTimeControl(new Date(), false);
   resultContent.innerHTML = `
-    <div class="result-heading"><span class="result-label">Shade recommendation</span><span class="result-step">01 → 02</span></div>
+    <div class="result-heading"><span class="result-label">${t("shadeRecommendation")}</span><span class="result-step">01 → 02</span></div>
     <div class="empty-answer"><span class="empty-marker" aria-hidden="true">+</span><div><h2>${next}</h2><p>${detail}</p></div></div>`;
 }
 
 function renderRecommendation() {
-  nowLabel.textContent = `Now · ${formatClockTime(new Date())}`;
+  nowLabel.textContent = `${t("now")} · ${formatClockTime(new Date())}`;
   const start = origin.getSelection();
   const end = destination.getSelection();
   const routeLineId = resolveRouteLine(start, end, selectedLineId());
@@ -389,19 +473,20 @@ function renderRecommendation() {
       date: departureDate,
     });
     const side = sideContent(recommendation.side);
-    const headingDirection = describeBearing(recommendation.heading);
-    const sunDirection = describeBearing(recommendation.sun.azimuth);
-    const sunHeight = describeSunElevation(recommendation.sun.elevation);
+    const headingDirection = localizedDirection(describeBearing(recommendation.heading));
+    const sunDirection = localizedDirection(describeBearing(recommendation.sun.azimuth));
+    const sunHeight = localizedSunHeight(recommendation.sun.elevation);
     const headingDegrees = Math.round(recommendation.heading);
     const sunAzimuthDegrees = Math.round(recommendation.sun.azimuth);
     const sunElevationDegrees = Math.round(recommendation.sun.elevation);
     const routeDirection = routeLineId === "yamanote"
-      ? `${recommendation.direction.startsWith("clockwise") ? "Outer" : "Inner"} loop · ${headingDirection.short}`
-      : `${headingDirection.short} bound`;
+      ? t(recommendation.direction.startsWith("clockwise") ? "outerLoop" : "innerLoop", { direction: headingDirection.short })
+      : t("bound", { direction: headingDirection.short });
     const startCode = stationCodeFor(routeLineId, start.name);
     const endCode = stationCodeFor(routeLineId, end.name);
     updateResultTimeControl(departureDate, true);
     syncTripUrl(departureDate);
+    rememberRecentRoute(routeLineId, start, end, departureDate);
 
     if (recommendation.isNight) {
       renderNightResult({ recommendation, routeLineId, routeDirection, startCode, endCode, departureDate });
@@ -412,20 +497,20 @@ function renderRecommendation() {
     result.dataset.side = recommendation.side;
     resultContent.innerHTML = `
       <div class="result-heading">
-        <span class="result-label">Best shade</span>
-        <span class="line-badge line-badge-${routeLineId}" aria-label="${LINES[routeLineId].name}" title="${LINES[routeLineId].name}">${LINES[routeLineId].code}</span>
+        <span class="result-label">${t("bestShade")}</span>
+        <span class="line-badge line-badge-${routeLineId}" aria-label="${LINE_NAMES[currentLanguage][routeLineId]}" title="${LINE_NAMES[currentLanguage][routeLineId]}">${LINES[routeLineId].code}</span>
       </div>
       <div class="answer">
         <span class="side-arrow" aria-hidden="true">${side.arrow}</span>
-        <div><h2>${side.label}</h2><p>${recommendation.start.name} <span class="route-code">${startCode}</span> → ${recommendation.end.name} <span class="route-code">${endCode}</span></p></div>
+        <div><h2>${side.label}</h2><p>${localizedStationName(recommendation.start)} <span class="route-code">${startCode}</span> → ${localizedStationName(recommendation.end)} <span class="route-code">${endCode}</span></p></div>
       </div>
       <div class="confidence-row">
-        <span class="confidence confidence-${recommendation.confidence}">${recommendation.confidence} confidence</span>
+        <span class="confidence confidence-${recommendation.confidence}">${t("confidence", { level: t(recommendation.confidence) })}</span>
         <span>${routeDirection}</span>
       </div>
-      <p class="reason">${recommendation.reason}</p>
+      <p class="reason">${recommendation.side === "left" ? t("reasonLeft") : recommendation.side === "right" ? t("reasonRight") : recommendation.sun.elevation < 8 ? t("reasonLow") : t("reasonAligned")}</p>
       <details class="result-details" open>
-        <summary>Why this result</summary>
+        <summary>${t("why")}</summary>
         <div class="orientation-layout">
           <div class="orientation-plot" style="--train-angle: ${headingDegrees}deg; --sun-angle: ${sunAzimuthDegrees}deg" role="img" data-base-label="Top-down compass: train heading ${headingDirection.label}, sun toward ${sunDirection.label}" aria-label="Top-down compass: train heading ${headingDirection.label}, sun toward ${sunDirection.label}">
             <span class="compass-label compass-n">N</span><span class="compass-label compass-e">E</span><span class="compass-label compass-s">S</span><span class="compass-label compass-w">W</span>
@@ -442,24 +527,24 @@ function renderRecommendation() {
           </div>
           <div class="orientation-side">
             <div class="orientation-legend">
-              <span><svg class="legend-icon train-key" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="15" rx="3"></rect><path d="M8 7h8M8 12h.01M16 12h.01M8 18l-2 3M16 18l2 3"></path></svg>Train</span>
-              <span><svg class="legend-icon sun-key" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>Sun</span>
-              <span id="phone-legend" hidden><svg class="legend-icon phone-key" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"></rect><path d="M10 5h4M11 18.5h2"></path></svg>Phone</span>
+              <span><svg class="legend-icon train-key" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="15" rx="3"></rect><path d="M8 7h8M8 12h.01M16 12h.01M8 18l-2 3M16 18l2 3"></path></svg>${t("train")}</span>
+              <span><svg class="legend-icon sun-key" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>${t("sun")}</span>
+              <span id="phone-legend" hidden><svg class="legend-icon phone-key" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"></rect><path d="M10 5h4M11 18.5h2"></path></svg>${t("phone")}</span>
             </div>
             <button id="phone-compass-button" class="phone-compass-button" type="button" data-active="false">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m15 9-2 5-5 2 2-5 5-2Z"></path></svg>
-              <span>Use phone compass</span>
+              <span>${t("useCompass")}</span>
             </button>
             <p id="phone-compass-status" class="phone-compass-status" aria-live="polite"></p>
           </div>
         </div>
         <dl class="direction-data">
-          <div><dt>Train is heading</dt><dd><strong>${headingDirection.label} <span>${headingDirection.short}</span></strong><small>${headingDegrees}° clockwise from north</small></dd></div>
-          <div><dt>Sun is toward</dt><dd><strong>${sunDirection.label} <span>${sunDirection.short}</span></strong><small>${sunAzimuthDegrees}° clockwise from north</small></dd></div>
-          <div><dt>Sun height</dt><dd><strong>${sunHeight}</strong><small>${sunElevationDegrees}° above the horizon</small></dd></div>
-          <div id="phone-direction-row" hidden><dt>Phone points</dt><dd><strong id="phone-direction-label"></strong><small id="phone-direction-detail"></small></dd></div>
+          <div><dt>${t("trainHeading")}</dt><dd><strong>${headingDirection.label} <span>${headingDirection.short}</span></strong><small>${t("clockwise", { degrees: headingDegrees })}</small></dd></div>
+          <div><dt>${t("sunToward")}</dt><dd><strong>${sunDirection.label} <span>${sunDirection.short}</span></strong><small>${t("clockwise", { degrees: sunAzimuthDegrees })}</small></dd></div>
+          <div><dt>${t("sunHeight")}</dt><dd><strong>${sunHeight}</strong><small>${t("aboveHorizon", { degrees: sunElevationDegrees })}</small></dd></div>
+          <div id="phone-direction-row" hidden><dt>${t("phonePoints")}</dt><dd><strong id="phone-direction-label"></strong><small id="phone-direction-detail"></small></dd></div>
         </dl>
-        <p class="bearing-note">Compass bearings start at north (0°) and move clockwise: east is 90°, south is 180°, and west is 270°. Sun height measures upward from the horizon.</p>
+        <p class="bearing-note">${t("bearingNote")}</p>
       </details>`;
     activeTrainHeading = recommendation.heading;
     bindPhoneCompassControls();
@@ -467,8 +552,72 @@ function renderRecommendation() {
     stopPhoneCompass();
     result.dataset.state = "error";
     updateResultTimeControl(new Date(), false);
-    resultContent.innerHTML = `<div class="result-heading"><span class="result-label">Route needed</span></div><div class="empty-answer"><span class="empty-marker" aria-hidden="true">!</span><div><h2>Choose two stations</h2><p>${error.message}</p></div></div>`;
+    resultContent.innerHTML = `<div class="result-heading"><span class="result-label">${t("routeNeeded")}</span></div><div class="empty-answer"><span class="empty-marker" aria-hidden="true">!</span><div><h2>${t("chooseTwo")}</h2><p>${error.message}</p></div></div>`;
   }
+}
+
+function renderRecentRoutes() {
+  recentRoutesSection.hidden = recentRoutes.length === 0;
+  recentRouteList.replaceChildren();
+  recentRoutes.forEach((route) => {
+    const options = stationOptions(route.lineId);
+    const start = options.find(({ name }) => name === route.startName);
+    const end = options.find(({ name }) => name === route.endName);
+    const date = parseTokyoDateTime(route.at);
+    if (!start || !end || !date || !LINES[route.lineId]) return;
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "recent-route";
+    button.innerHTML = `
+      <span class="line-badge line-badge-${route.lineId}">${LINES[route.lineId].code}</span>
+      <span class="recent-route-names">${localizedStationName(start)} → ${localizedStationName(end)}</span>
+      <span class="recent-route-time">${formatResultTime(date)}</span>`;
+    button.addEventListener("click", () => restoreRecentRoute(route));
+    recentRouteList.append(button);
+  });
+}
+
+function rememberRecentRoute(lineId, start, end, date) {
+  const at = formatTokyoDateTime(date);
+  recentRoutes = addRecentRoute(recentRoutes, {
+    lineId,
+    startName: start.name,
+    endName: end.name,
+    at,
+    viewedAt: new Date().toISOString(),
+  });
+  writeStorage(RECENT_ROUTES_KEY, JSON.stringify(recentRoutes));
+  renderRecentRoutes();
+}
+
+function restoreRecentRoute(route) {
+  const options = stationOptions(route.lineId);
+  const start = options.find(({ name }) => name === route.startName);
+  const end = options.find(({ name }) => name === route.endName);
+  const date = parseTokyoDateTime(route.at);
+  if (!start || !end || !date) return;
+  setLine(route.lineId);
+  origin.setSelection(start);
+  destination.setSelection(end);
+  form.elements["time-mode"].value = "specific";
+  setSpecificDate(date);
+  setSpecificTimeControls(true);
+  syncStationScopes();
+  renderRecommendation();
+  result.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function setLanguage(language) {
+  if (!["en", "ja"].includes(language) || language === currentLanguage) return;
+  currentLanguage = language;
+  writeStorage(LANGUAGE_KEY, language);
+  applyStaticTranslations();
+  origin.setSelection(origin.getSelection());
+  destination.setSelection(destination.getSelection());
+  setLine(selectedLineId());
+  renderRecentRoutes();
+  renderRecommendation();
 }
 
 function setTimeMode() {
@@ -513,8 +662,8 @@ async function copyResultLink() {
     temporary.remove();
   }
   shareStatus.textContent = copied
-    ? "Link copied. It includes this route and departure time."
-    : "Could not copy automatically. Copy the current address from your browser.";
+    ? t("linkCopied")
+    : t("copyFailed");
 }
 
 function swapRoute() {
@@ -537,22 +686,22 @@ function formatDistance(distanceKm) {
 }
 
 function locationErrorMessage(error) {
-  if (error.code === 1) return "Location access was denied. You can still search manually.";
-  if (error.code === 2) return "Your location is unavailable right now. Try again or search manually.";
-  if (error.code === 3) return "Location took too long. Try again or search manually.";
-  return "Could not find your location. Try again or search manually.";
+  if (error.code === 1) return t("locationDenied");
+  if (error.code === 2) return t("locationUnavailable");
+  if (error.code === 3) return t("locationTimeout");
+  return t("locationError");
 }
 
 function useClosestStation() {
   if (!navigator.geolocation) {
     locationStatus.dataset.state = "error";
-    locationStatus.textContent = "This browser does not support location. Search manually instead.";
+    locationStatus.textContent = t("locationUnsupported");
     return;
   }
   locateButton.disabled = true;
   locateButton.dataset.loading = "true";
   locationStatus.dataset.state = "loading";
-  locationStatus.textContent = "Finding your closest station…";
+  locationStatus.textContent = t("locating");
   navigator.geolocation.getCurrentPosition(
     ({ coords }) => {
       const requestedLineId = selectedLineId();
@@ -565,9 +714,14 @@ function useClosestStation() {
       syncStationScopes();
       locationStatus.dataset.state = "success";
       const locationContext = requestedLineId === "all"
-        ? `Served by ${closest.station.stationCodes.join(", ")}`
-        : LINES[requestedLineId].name;
-      locationStatus.textContent = `Closest station: ${closest.station.name} (${closest.station.nameJa}) · ${locationContext} · about ${formatDistance(closest.distanceKm)} away.`;
+        ? t("servedBy", { codes: closest.station.stationCodes.join(", ") })
+        : LINE_NAMES[currentLanguage][requestedLineId];
+      locationStatus.textContent = t("closestResult", {
+        name: closest.station.name,
+        nameJa: closest.station.nameJa,
+        context: locationContext,
+        distance: formatDistance(closest.distanceKm),
+      });
       locateButton.disabled = false;
       delete locateButton.dataset.loading;
       renderRecommendation();
@@ -583,8 +737,11 @@ function useClosestStation() {
   );
 }
 
+writeStorage(LANGUAGE_KEY, currentLanguage);
+applyStaticTranslations();
 setSpecificDate(new Date());
 hydrateTripState();
+renderRecentRoutes();
 renderRecommendation();
 
 form.addEventListener("change", (event) => {
@@ -606,6 +763,14 @@ swapButton.addEventListener("click", swapRoute);
 locateButton.addEventListener("click", useClosestStation);
 resultTimeSlider.addEventListener("input", applyResultSliderTime);
 shareButton.addEventListener("click", copyResultLink);
+document.querySelectorAll("[data-language]").forEach((button) => {
+  button.addEventListener("click", () => setLanguage(button.dataset.language));
+});
+clearRecentRoutesButton.addEventListener("click", () => {
+  recentRoutes = [];
+  writeStorage(RECENT_ROUTES_KEY, "[]");
+  renderRecentRoutes();
+});
 document.addEventListener("keydown", (event) => {
   if (!shouldFocusOriginForTyping(event, document.activeElement)) return;
   origin.input.focus();

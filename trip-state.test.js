@@ -28,14 +28,16 @@ test("formats and parses exact Tokyo wall-clock timestamps", () => {
 
 test("round-trips the shareable route state", () => {
   const query = serializeTripState({
+    language: "ja",
     lineId: "shinjuku",
     startName: "Iwamotocho",
     endName: "Higashi-ojima",
     date: new Date("2026-07-29T13:45:00+09:00"),
   });
 
-  assert.equal(query, "line=shinjuku&from=Iwamotocho&to=Higashi-ojima&at=2026-07-29T13%3A45");
+  assert.equal(query, "lang=ja&line=shinjuku&from=Iwamotocho&to=Higashi-ojima&at=2026-07-29T13%3A45");
   assert.deepEqual(parseTripState(`?${query}`, ["all", "shinjuku"]), {
+    language: "ja",
     lineId: "shinjuku",
     startName: "Iwamotocho",
     endName: "Higashi-ojima",
@@ -45,6 +47,7 @@ test("round-trips the shareable route state", () => {
 
 test("ignores invalid line and time values in shared state", () => {
   assert.deepEqual(parseTripState("?line=fake&from=Shibuya&at=bad", ["all", "inokashira"]), {
+    language: null,
     lineId: "all",
     startName: "Shibuya",
     endName: null,
