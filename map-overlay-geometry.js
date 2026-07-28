@@ -1,14 +1,21 @@
+const MIN_POLYLINE_SPACING = 1;
+const MAX_POLYLINE_SAMPLES = 200;
+
 export function normalizeBearing(value) {
-  return ((Number(value) % 360) + 360) % 360;
+  if (!Number.isFinite(value)) return null;
+  return ((value % 360) + 360) % 360;
 }
 
 export function incomingLightBearing(solarAzimuth) {
-  return normalizeBearing(solarAzimuth + 180);
+  const normalized = normalizeBearing(solarAzimuth);
+  return normalized === null ? null : normalizeBearing(normalized + 180);
 }
 
 export function unwrapBearing(previous, next) {
   const normalized = normalizeBearing(next);
-  if (!Number.isFinite(previous)) return normalized;
+  if (normalized === null) return null;
+  if (previous === null) return normalized;
+  if (!Number.isFinite(previous)) return null;
 
   const previousNormalized = normalizeBearing(previous);
   const delta = ((normalized - previousNormalized + 540) % 360) - 180;
@@ -16,8 +23,21 @@ export function unwrapBearing(previous, next) {
 }
 
 export function samplePolyline(points, spacing = 70, inset = 30) {
-  if (!Array.isArray(points) || points.length < 2 || spacing <= 0 || inset < 0) {
+  if (
+    !Array.isArray(points)
+    || points.length < 2
+    || !Number.isFinite(spacing)
+    || spacing < MIN_POLYLINE_SPACING
+    || !Number.isFinite(inset)
+    || inset < 0
+  ) {
     return [];
+  }
+
+  for (const point of points) {
+    if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+      return [];
+    }
   }
 
   const segments = [];
@@ -30,6 +50,7 @@ export function samplePolyline(points, spacing = 70, inset = 30) {
     const dy = end.y - start.y;
     const length = Math.hypot(dx, dy);
 
+    if (!Number.isFinite(length)) return [];
     if (length === 0) continue;
 
     segments.push({
@@ -41,12 +62,16 @@ export function samplePolyline(points, spacing = 70, inset = 30) {
       routeEnd: totalLength + length,
     });
     totalLength += length;
+    if (!Number.isFinite(totalLength)) return [];
   }
 
   const usableLength = totalLength - inset * 2;
   if (usableLength <= 0 || segments.length === 0) return [];
 
-  const sampleCount = Math.max(1, Math.round(usableLength / spacing));
+  const sampleCount = Math.min(
+    MAX_POLYLINE_SAMPLES,
+    Math.max(1, Math.round(usableLength / spacing)),
+  );
   const sampleInterval = usableLength / sampleCount;
 
   return Array.from({ length: sampleCount }, (_, index) => {
