@@ -26,3 +26,9 @@ test("renders focusable endpoint links and binds pointer and keyboard highlighti
   assert.match(source, /stationMap\.highlightEndpoint\(role,\s*true\)/);
   assert.match(source, /stationMap\.highlightEndpoint\(role,\s*false\)/);
 });
+
+test("updates slider results live but commits URL state only when dragging ends", () => {
+  assert.match(source, /renderRecommendation\(\{\s*syncUrl:\s*false,\s*saveRecent:\s*false\s*\}\)/);
+  assert.match(source, /resultTimeSlider\.addEventListener\("input",\s*applyResultSliderTime\)/);
+  assert.match(source, /resultTimeSlider\.addEventListener\("change",\s*commitResultSliderTime\)/);
+});

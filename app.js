@@ -252,7 +252,11 @@ function syncTripUrl(date = null) {
   });
   const nextUrl = `${window.location.pathname}?${query}${window.location.hash}`;
   if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== nextUrl) {
-    window.history.replaceState(null, "", nextUrl);
+    try {
+      window.history.replaceState(null, "", nextUrl);
+    } catch {
+      // Safari rate-limits history writes; URL sync must never hide a valid result.
+    }
   }
 }
 
@@ -473,7 +477,7 @@ function renderRoutePrompt() {
     <div class="empty-answer"><span class="empty-marker" aria-hidden="true">+</span><div><h2>${next}</h2><p>${detail}</p></div></div>`;
 }
 
-function renderRecommendation() {
+function renderRecommendation({ syncUrl = true, saveRecent = true } = {}) {
   nowLabel.textContent = `${t("now")} · ${formatClockTime(new Date())}`;
   const start = origin.getSelection();
   const end = destination.getSelection();
@@ -516,8 +520,8 @@ function renderRecommendation() {
     const startCode = stationCodeFor(routeLineId, start.name);
     const endCode = stationCodeFor(routeLineId, end.name);
     updateResultTimeControl(departureDate, true);
-    syncTripUrl(departureDate);
-    rememberRecentRoute(routeLineId, start, end, departureDate);
+    if (syncUrl) syncTripUrl(departureDate);
+    if (saveRecent) rememberRecentRoute(routeLineId, start, end, departureDate);
 
     if (recommendation.isNight) {
       renderNightResult({ recommendation, routeLineId, routeDirection, startCode, endCode, departureDate });
@@ -673,6 +677,10 @@ function applyResultSliderTime() {
   setSpecificDate(date);
   setSpecificTimeControls(true);
   shareStatus.textContent = "";
+  renderRecommendation({ syncUrl: false, saveRecent: false });
+}
+
+function commitResultSliderTime() {
   renderRecommendation();
 }
 
@@ -795,6 +803,7 @@ form.addEventListener("submit", (event) => event.preventDefault());
 swapButton.addEventListener("click", swapRoute);
 locateButton.addEventListener("click", useClosestStation);
 resultTimeSlider.addEventListener("input", applyResultSliderTime);
+resultTimeSlider.addEventListener("change", commitResultSliderTime);
 shareButton.addEventListener("click", copyResultLink);
 document.querySelectorAll("[data-language]").forEach((button) => {
   button.addEventListener("click", () => setLanguage(button.dataset.language));
