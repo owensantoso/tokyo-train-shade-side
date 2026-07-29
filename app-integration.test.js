@@ -32,3 +32,14 @@ test("updates slider results live but commits URL state only when dragging ends"
   assert.match(source, /resultTimeSlider\.addEventListener\("input",\s*applyResultSliderTime\)/);
   assert.match(source, /resultTimeSlider\.addEventListener\("change",\s*commitResultSliderTime\)/);
 });
+
+test("clears empty sides instead of assigning null selections during swap", () => {
+  assert.match(source, /if \(end\) origin\.setSelection\(end\);\s*else origin\.clear\(\)/);
+  assert.match(source, /if \(start\) destination\.setSelection\(start\);\s*else destination\.clear\(\)/);
+  assert.doesNotMatch(source, /setSelection\([^)]*\?\s*\{[^}]*\}\s*:\s*null\)/);
+});
+
+test("origin search remains available across all lines", () => {
+  assert.match(source, /origin\.setLine\("all"\)/);
+  assert.match(source, /!option\.lineIds\.includes\(selectedLineId\(\)\)/);
+});

@@ -11,7 +11,6 @@ import {
   resolveRouteLine,
   stationCodeFor,
   stationOptions,
-  swapStations,
 } from "./shade.js";
 import { shouldFocusOriginForTyping } from "./keyboard-shortcut.js?v=0.10";
 import { PhoneCompassController, signedHeadingDifference } from "./phone-compass.js";
@@ -280,7 +279,7 @@ function hydrateTripState() {
 function setLine(lineId, { clearRoute = false } = {}) {
   const radio = form.querySelector(`input[name="line"][value="${lineId}"]`);
   if (radio) radio.checked = true;
-  origin.setLine(lineId);
+  origin.setLine("all");
   destination.setLine(lineId);
   document.body.dataset.line = lineId;
   routeLineLabel.textContent = lineId === "all" ? t("allSupported") : LINE_NAMES[currentLanguage][lineId];
@@ -296,18 +295,21 @@ function setLine(lineId, { clearRoute = false } = {}) {
 function syncStationScopes() {
   const lineId = selectedLineId();
   const start = origin.getSelection();
-  const end = destination.getSelection();
-  origin.setLine(lineId === "all" && !start && end ? end.lineIds : lineId);
+  origin.setLine("all");
   destination.setLine(lineId === "all" && start ? start.lineIds : lineId);
 }
 
 function handleOriginSelect(option) {
+  if (selectedLineId() !== "all" && !option.lineIds.includes(selectedLineId())) {
+    setLine("all");
+  }
   const destinationSelection = destination.getSelection();
   if (destinationSelection && !resolveRouteLine(option, destinationSelection, selectedLineId())) {
     destination.clear();
   }
   syncStationScopes();
   renderRecommendation();
+  animateRecommendation();
   window.requestAnimationFrame(() => destination.focusAndOpen());
 }
 
@@ -317,8 +319,12 @@ function handleOriginInput() {
 }
 
 function handleDestinationSelect(option) {
+  if (selectedLineId() !== "all" && !option.lineIds.includes(selectedLineId())) {
+    setLine("all");
+  }
   syncStationScopes();
   renderRecommendation();
+  animateRecommendation();
   if (!origin.getSelection()) window.requestAnimationFrame(() => origin.focusAndOpen());
 }
 
@@ -475,6 +481,12 @@ function renderRoutePrompt() {
   resultContent.innerHTML = `
     <div class="result-heading"><span class="result-label">${t("shadeRecommendation")}</span><span class="result-step">01 → 02</span></div>
     <div class="empty-answer"><span class="empty-marker" aria-hidden="true">+</span><div><h2>${next}</h2><p>${detail}</p></div></div>`;
+}
+
+function animateRecommendation() {
+  resultContent.classList.remove("is-entering");
+  void resultContent.offsetWidth;
+  resultContent.classList.add("is-entering");
 }
 
 function renderRecommendation({ syncUrl = true, saveRecent = true } = {}) {
@@ -710,11 +722,13 @@ async function copyResultLink() {
 function swapRoute() {
   const start = origin.getSelection();
   const end = destination.getSelection();
-  const swapped = swapStations(start?.name ?? null, end?.name ?? null);
-  origin.setSelection(end ? { ...end, name: swapped.startName } : null);
-  destination.setSelection(start ? { ...start, name: swapped.endName } : null);
+  if (end) origin.setSelection(end);
+  else origin.clear();
+  if (start) destination.setSelection(start);
+  else destination.clear();
   syncStationScopes();
   renderRecommendation();
+  animateRecommendation();
   if (!origin.getSelection() || !destination.getSelection()) {
     const emptyCombobox = origin.getSelection() ? destination : origin;
     window.requestAnimationFrame(() => emptyCombobox.focusAndOpen());
@@ -787,7 +801,7 @@ renderRecommendation();
 
 form.addEventListener("change", (event) => {
   if (event.target.name === "line") {
-    setLine(event.target.value, { clearRoute: true });
+    setLine(event.target.value);
     locationStatus.textContent = "";
     delete locationStatus.dataset.state;
     renderRecommendation();

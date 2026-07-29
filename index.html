@@ -8,7 +8,7 @@
     <title>Shade Seat · Tokyo train sun guide</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="styles.css?v=0.14">
+    <link rel="stylesheet" href="styles.css?v=0.15">
   </head>
   <body data-line="all">
     <a class="skip-link" href="#main-content" data-i18n="skip">Skip to trip controls</a>
@@ -23,7 +23,7 @@
           <button type="button" data-language="en" aria-pressed="true">EN</button>
           <button type="button" data-language="ja" aria-pressed="false">JP</button>
         </div>
-        <span class="prototype-label">Tokyo beta · v0.14</span>
+        <span class="prototype-label">Tokyo beta · v0.15</span>
       </div>
     </header>
 
@@ -36,38 +36,6 @@
 
       <div class="workspace">
         <form id="shade-form" class="trip-tool" novalidate>
-          <fieldset class="line-picker">
-            <legend data-i18n="filter">Filter by train line</legend>
-            <div class="segmented-control line-control">
-              <input id="line-all" name="line" type="radio" value="all" checked>
-              <label for="line-all"><span class="picker-code picker-code-all">ALL</span><span data-line-name="all">All lines</span></label>
-              <input id="line-keio" name="line" type="radio" value="keio">
-              <label for="line-keio"><span class="picker-code line-badge-keio">KO</span><span data-line-name="keio">Keio + New</span></label>
-              <input id="line-inokashira" name="line" type="radio" value="inokashira">
-              <label for="line-inokashira"><span class="picker-code line-badge-inokashira">IN</span><span data-line-name="inokashira">Inokashira</span></label>
-              <input id="line-shinjuku" name="line" type="radio" value="shinjuku">
-              <label for="line-shinjuku"><span class="picker-code line-badge-shinjuku">S</span><span data-line-name="shinjuku">Shinjuku</span></label>
-              <input id="line-ginza" name="line" type="radio" value="ginza">
-              <label for="line-ginza"><span class="picker-code line-badge-ginza">G</span><span data-line-name="ginza">Ginza</span></label>
-              <input id="line-chuo" name="line" type="radio" value="chuo">
-              <label for="line-chuo"><span class="picker-code line-badge-chuo">JC</span><span data-line-name="chuo">Chuo Rapid</span></label>
-              <input id="line-yamanote" name="line" type="radio" value="yamanote">
-              <label for="line-yamanote"><span class="picker-code line-badge-yamanote">JY</span><span data-line-name="yamanote">Yamanote</span></label>
-              <input id="line-odakyu" name="line" type="radio" value="odakyu">
-              <label for="line-odakyu"><span class="picker-code line-badge-odakyu">OH</span><span data-line-name="odakyu">Odakyu</span></label>
-              <input id="line-denentoshi" name="line" type="radio" value="denentoshi">
-              <label for="line-denentoshi"><span class="picker-code line-badge-denentoshi">DT</span><span data-line-name="denentoshi">Den-en-toshi</span></label>
-            </div>
-          </fieldset>
-
-          <section class="line-schematic-panel" aria-labelledby="schematic-title">
-            <div class="schematic-heading">
-              <h2 id="schematic-title" data-i18n="stationMap">Station map</h2>
-              <span id="schematic-status" data-i18n="chooseLine">Choose a line</span>
-            </div>
-            <div id="line-schematic" class="line-schematic" aria-label="Interactive station map" data-i18n-aria-label="mapAria"></div>
-          </section>
-
           <div class="route-board">
             <div class="route-heading">
               <span data-i18n="route">Route</span>
@@ -112,6 +80,38 @@
               </div>
             </div>
           </div>
+
+          <section class="line-schematic-panel" aria-labelledby="schematic-title">
+            <div class="schematic-heading">
+              <h2 id="schematic-title" data-i18n="stationMap">Station map</h2>
+              <span id="schematic-status" data-i18n="chooseLine">Choose a line</span>
+            </div>
+            <div id="line-schematic" class="line-schematic" aria-label="Interactive station map" data-i18n-aria-label="mapAria"></div>
+          </section>
+
+          <fieldset class="line-picker">
+            <legend data-i18n="filter">Focus map by line</legend>
+            <div class="segmented-control line-control">
+              <input id="line-all" name="line" type="radio" value="all" checked>
+              <label for="line-all"><span class="picker-code picker-code-all">ALL</span><span data-line-name="all">All lines</span></label>
+              <input id="line-keio" name="line" type="radio" value="keio">
+              <label for="line-keio"><span class="picker-code line-badge-keio">KO</span><span data-line-name="keio">Keio + New</span></label>
+              <input id="line-inokashira" name="line" type="radio" value="inokashira">
+              <label for="line-inokashira"><span class="picker-code line-badge-inokashira">IN</span><span data-line-name="inokashira">Inokashira</span></label>
+              <input id="line-shinjuku" name="line" type="radio" value="shinjuku">
+              <label for="line-shinjuku"><span class="picker-code line-badge-shinjuku">S</span><span data-line-name="shinjuku">Shinjuku</span></label>
+              <input id="line-ginza" name="line" type="radio" value="ginza">
+              <label for="line-ginza"><span class="picker-code line-badge-ginza">G</span><span data-line-name="ginza">Ginza</span></label>
+              <input id="line-chuo" name="line" type="radio" value="chuo">
+              <label for="line-chuo"><span class="picker-code line-badge-chuo">JC</span><span data-line-name="chuo">Chuo Rapid</span></label>
+              <input id="line-yamanote" name="line" type="radio" value="yamanote">
+              <label for="line-yamanote"><span class="picker-code line-badge-yamanote">JY</span><span data-line-name="yamanote">Yamanote</span></label>
+              <input id="line-odakyu" name="line" type="radio" value="odakyu">
+              <label for="line-odakyu"><span class="picker-code line-badge-odakyu">OH</span><span data-line-name="odakyu">Odakyu</span></label>
+              <input id="line-denentoshi" name="line" type="radio" value="denentoshi">
+              <label for="line-denentoshi"><span class="picker-code line-badge-denentoshi">DT</span><span data-line-name="denentoshi">Den-en-toshi</span></label>
+            </div>
+          </fieldset>
 
           <div class="location-group">
             <button id="locate-station" class="secondary-button" type="button">
@@ -188,6 +188,6 @@
     </main>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script type="module" src="app.js?v=0.14"></script>
+    <script type="module" src="app.js?v=0.15"></script>
   </body>
 </html>
