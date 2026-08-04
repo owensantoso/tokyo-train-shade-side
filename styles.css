@@ -179,8 +179,8 @@ body[data-line="denentoshi"] .line-schematic-panel { --line-accent: var(--denent
 .station-suggestion:last-child { border-bottom: 0; }
 .station-suggestion:hover, .station-suggestion.is-active { background: var(--ink); color: white; }
 .suggestion-name { min-width: 0; display: grid; gap: 2px; overflow-wrap: anywhere; font-weight: 800; }
-.suggestion-name-ja { color: var(--muted); font-size: .72rem; font-weight: 600; }
-.station-suggestion:hover .suggestion-name-ja, .station-suggestion.is-active .suggestion-name-ja { color: #c8d0cc; }
+.suggestion-name-secondary { color: var(--muted); font-size: .72rem; font-weight: 600; }
+.station-suggestion:hover .suggestion-name-secondary, .station-suggestion.is-active .suggestion-name-secondary { color: #c8d0cc; }
 .suggestion-lines { max-width: 48%; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 3px; }
 .suggestion-empty { padding: 16px 10px; color: var(--muted); font-size: .86rem; text-align: center; }
 .line-badge { flex: 0 0 auto; padding: 4px 7px; border-radius: 2px; color: white; font-family: var(--font-technical); font-size: .62rem; font-weight: 700; text-transform: uppercase; }

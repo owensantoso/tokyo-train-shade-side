@@ -10,6 +10,13 @@ export function isTapGesture(start, end) {
   return Math.hypot(end.x - start.x, end.y - start.y) <= TAP_MOVEMENT_THRESHOLD;
 }
 
+export function orderStationNames(option, preferredName) {
+  const japaneseFirst = preferredName === option?.nameJa;
+  return japaneseFirst
+    ? { primary: option.nameJa, secondary: option.name, primaryLanguage: "ja", secondaryLanguage: "en" }
+    : { primary: option.name, secondary: option.nameJa, primaryLanguage: "en", secondaryLanguage: "ja" };
+}
+
 export class StationCombobox {
   constructor({ input, listbox, codeElement, clearButton, getOptions, onSelect, onInput, onClear, getText = (key) => key, getOptionLabel = (option) => option?.name ?? "" }) {
     this.input = input;
@@ -192,13 +199,15 @@ export class StationCombobox {
 
       const name = document.createElement("span");
       name.className = "suggestion-name";
-      const nameEn = document.createElement("span");
-      nameEn.textContent = option.name;
-      const nameJa = document.createElement("span");
-      nameJa.className = "suggestion-name-ja";
-      nameJa.lang = "ja";
-      nameJa.textContent = option.nameJa;
-      name.append(nameEn, nameJa);
+      const orderedNames = orderStationNames(option, this.getOptionLabel(option));
+      const primaryName = document.createElement("span");
+      primaryName.lang = orderedNames.primaryLanguage;
+      primaryName.textContent = orderedNames.primary;
+      const secondaryName = document.createElement("span");
+      secondaryName.className = "suggestion-name-secondary";
+      secondaryName.lang = orderedNames.secondaryLanguage;
+      secondaryName.textContent = orderedNames.secondary;
+      name.append(primaryName, secondaryName);
 
       const lines = document.createElement("span");
       lines.className = "suggestion-lines";

@@ -15,7 +15,7 @@ import {
 import { shouldFocusOriginForTyping } from "./keyboard-shortcut.js?v=0.10";
 import { PhoneCompassController, signedHeadingDifference } from "./phone-compass.js";
 import { StationMap } from "./station-map.js";
-import { StationCombobox } from "./station-combobox.js";
+import { StationCombobox } from "./station-combobox.js?v=0.16";
 import { LINE_NAMES, resolveLanguage, translate } from "./locale.js";
 import { addRecentRoute, parseRecentRoutes } from "./recent-routes.js";
 import {
