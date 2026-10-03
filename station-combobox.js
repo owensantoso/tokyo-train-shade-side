@@ -96,7 +96,7 @@ export class StationCombobox {
 
   setSelection(option) {
     this.selection = option;
-    this.input.value = this.getOptionLabel(option);
+    this.input.value = option ? (this.getOptionLabel(option) ?? "") : "";
     this.input.setAttribute("aria-invalid", "false");
     if (this.codeElement) {
       const stationCodes = option?.stationCodes ?? (option?.stationCode ? [option.stationCode] : []);
@@ -158,6 +158,8 @@ export class StationCombobox {
   }
 
   handleKeydown(event) {
+    if (event.isComposing || event.keyCode === 229) return;
+
     if (event.key === "Escape") {
       this.close();
       return;

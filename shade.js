@@ -1,3 +1,5 @@
+import { formatTokyoDateTime, parseTokyoDateTime } from "./trip-state.js";
+
 export const TOKYO = {
   lat: 35.6762,
   lon: 139.6503,
@@ -451,16 +453,19 @@ export function shouldPreserveDestination(destinationSelection, lineId) {
 export function departurePreset(now, preset) {
   const date = new Date(now);
   if (preset === "plus-30") return new Date(date.getTime() + 30 * 60 * 1000);
+  // Use UTC setters only to advance Tokyo calendar fields, never the device's timezone.
+  const calendar = new Date(`${formatTokyoDateTime(date)}:00Z`);
   if (preset === "tomorrow-morning") {
-    date.setDate(date.getDate() + 1);
-    date.setHours(8, 0, 0, 0);
-    return date;
+    calendar.setUTCDate(calendar.getUTCDate() + 1);
+    calendar.setUTCHours(8, 0, 0, 0);
+    return parseTokyoDateTime(calendar.toISOString().slice(0, 16));
   }
   if (preset === "evening") {
-    const evening = new Date(date);
-    evening.setHours(18, 0, 0, 0);
-    if (evening <= date) evening.setDate(evening.getDate() + 1);
-    return evening;
+    calendar.setUTCHours(18, 0, 0, 0);
+    if (parseTokyoDateTime(calendar.toISOString().slice(0, 16)) <= date) {
+      calendar.setUTCDate(calendar.getUTCDate() + 1);
+    }
+    return parseTokyoDateTime(calendar.toISOString().slice(0, 16));
   }
   throw new Error(`Unknown departure preset: ${preset}`);
 }
