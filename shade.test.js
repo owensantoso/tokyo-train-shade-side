@@ -195,13 +195,13 @@ test("marks a midnight route as night while noon remains daylight", () => {
 });
 
 test("builds useful future departure presets", () => {
-  const now = new Date(2026, 6, 21, 17, 45);
-  assert.equal(departurePreset(now, "plus-30").getTime(), new Date(2026, 6, 21, 18, 15).getTime());
-  assert.equal(departurePreset(now, "evening").getTime(), new Date(2026, 6, 21, 18, 0).getTime());
-  assert.equal(departurePreset(now, "tomorrow-morning").getTime(), new Date(2026, 6, 22, 8, 0).getTime());
+  const now = new Date("2026-07-21T17:45:00+09:00");
+  assert.equal(departurePreset(now, "plus-30").getTime(), new Date("2026-07-21T18:15:00+09:00").getTime());
+  assert.equal(departurePreset(now, "evening").getTime(), new Date("2026-07-21T18:00:00+09:00").getTime());
+  assert.equal(departurePreset(now, "tomorrow-morning").getTime(), new Date("2026-07-22T08:00:00+09:00").getTime());
 
-  const afterEvening = new Date(2026, 6, 21, 20, 0);
-  assert.equal(departurePreset(afterEvening, "evening").getTime(), new Date(2026, 6, 22, 18, 0).getTime());
+  const afterEvening = new Date("2026-07-21T20:00:00+09:00");
+  assert.equal(departurePreset(afterEvening, "evening").getTime(), new Date("2026-07-22T18:00:00+09:00").getTime());
 });
 
 test("builds station search options for all lines or one selected line", () => {

@@ -199,10 +199,6 @@ function setSpecificDate(date) {
   timeInput.value = toTimeInputValue(date);
 }
 
-function formatClockTime(date) {
-  return new Intl.DateTimeFormat(currentLanguage === "ja" ? "ja-JP" : "en", { hour: "numeric", minute: "2-digit" }).format(date);
-}
-
 function formatTokyoClockTime(date) {
   return new Intl.DateTimeFormat(currentLanguage === "ja" ? "ja-JP" : "en", {
     hour: "numeric",
@@ -490,7 +486,7 @@ function animateRecommendation() {
 }
 
 function renderRecommendation({ syncUrl = true, saveRecent = true } = {}) {
-  nowLabel.textContent = `${t("now")} · ${formatClockTime(new Date())}`;
+  nowLabel.textContent = `${t("now")} · ${formatTokyoClockTime(new Date())}`;
   const start = origin.getSelection();
   const end = destination.getSelection();
   const routeLineId = resolveRouteLine(start, end, selectedLineId());

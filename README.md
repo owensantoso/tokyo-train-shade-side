@@ -17,6 +17,7 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - Selecting a line zooms the embedded geographic station map to that corridor; click one station for the origin and another for the destination.
 - Selecting both endpoints automatically frames the chosen map segment and adds static chevrons showing the route direction.
 - Arrow keys move through station suggestions, Enter selects, and Escape closes the list.
+- Station shortcuts leave Japanese IME composition keys to the input method; switching languages keeps blank station fields empty.
 - Choosing a shared origin keeps every directly reachable line available; the line resolves after the destination is selected.
 - Swap origin and destination with one button.
 - Optionally choose the closest origin station using browser location, across all lines or within an explicit line filter.
@@ -25,6 +26,7 @@ Small static prototype for recommending the shadier side of a Tokyo train.
 - Detects night after the calculated Tokyo sunset and removes the sun-side recommendation and compass.
 - Sunrise and sunset are calculated locally for the selected date; no weather or astronomy API is called.
 - Completed results include a live Tokyo-time slider that recalculates the shade recommendation while it moves.
+- Departure shortcuts and the Now label also use Tokyo time, regardless of the device timezone.
 - Hovering or focusing an endpoint in the result highlights its station on the map.
 - Route, endpoints, and exact Tokyo departure time are stored in the URL and can be copied with the result Share button.
 - English and Japanese UI modes are available from the header. Shared links include the language; otherwise the last choice is remembered, with browser locale used on the first visit.
